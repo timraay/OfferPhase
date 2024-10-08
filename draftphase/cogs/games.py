@@ -52,8 +52,8 @@ class GamesCog(commands.Cog):
         message = await interaction.original_response()
 
         with get_cursor() as cur:
-            cur.execute("SELECT seq + 1 FROM sqlite_sequence WHERE name = 'games'")
-            game_id = cur.fetchone()[0] or 1
+            cur.execute("SELECT COALESCE((SELECT seq + 1 FROM sqlite_sequence WHERE name = 'games'), 1)")
+            game_id = cur.fetchone()[0]
         thread = await message.create_thread(name=f"game-{game_id}")
 
         game = Game.create(interaction.user.id, opponent.id, thread.id, max_num_offers=max_num_offers)
