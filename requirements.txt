@@ -1,0 +1,4 @@
+discord.py>=2.4
+pillow>=10.4.0
+cachetools
+pydantic==2.*
