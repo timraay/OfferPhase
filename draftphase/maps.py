@@ -81,7 +81,7 @@ MAPS = {
             ("Fuel Depot", "Airfield Command", "Airfield Hangars"),
             ("Cliffside Village", "Ambushed Convoy", "Quarry"),
         ),
-        orientation=Orientation.VERTICAL,
+        orientation=Orientation.HORIZONTAL,
         allies=Faction.CW,
         axis=Faction.GER,
     ),
