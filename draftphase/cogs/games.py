@@ -29,8 +29,9 @@ class GamesCog(commands.Cog):
                     "Make sure the following permissions are added, then try again:"
                     "\n\n"
                     "- View Channel\n"
-                    "- Create Public Threads\n"
+                    "- Send Messages\n"
                     "- Send Messages in Threads\n"
+                    "- Create Public Threads\n"
                     "- Embed Links"
                 )
             )
