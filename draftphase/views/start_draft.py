@@ -36,7 +36,8 @@ class StartDraftView(View):
         self.add_item(
             StartDraftButton(
                 ui.Button(
-                    label=f"Player {game.turn()}: Create offer..."
+                    label=f"Create offer...",
+                    emoji=player_idx_to_emoji(game.turn()),
                 ),
                 game.id,
             )
