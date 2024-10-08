@@ -25,7 +25,7 @@ def create_tables():
             player2_id INTEGER NOT NULL,
             channel_id INTEGER NOT NULL,
             flip_sides BOOL,
-            max_offer_limit INTEGER NOT NULL
+            max_num_offers INTEGER NOT NULL
         );
         """)
         cur.execute("""
