@@ -1,4 +1,4 @@
-from discord import Permissions, app_commands, Interaction, Member
+from discord import Permissions, TextChannel, app_commands, Interaction, Member
 from discord.ext import commands
 
 from draftphase.bot import Bot
@@ -19,7 +19,11 @@ class GamesCog(commands.Cog):
         max_num_offers="Amount of offers you and your opponent get, combined. Defaults to 10 (5 each).",
     )
     async def start_draft_phase(self, interaction: Interaction, opponent: Member, max_num_offers: int = 10):
-        assert interaction.channel is not None
+        if not isinstance(interaction.channel, TextChannel):
+            raise CustomException(
+                "Cannot use this here!",
+                "Command must not be invoked from within a thread or forum post."
+            )
 
         bot_perms = interaction.channel.permissions_for(opponent.guild.me)
         if not bot_perms.is_superset(Permissions(309237661696)):
