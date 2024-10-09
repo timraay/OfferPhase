@@ -13,7 +13,7 @@ class AcceptOfferButton(
 ):
     def __init__(self, item: ui.Button, game_id: int, flip_sides: bool) -> None:
         self.game_id = int(game_id)
-        self.flip_sides = bool(flip_sides)
+        self.flip_sides = bool(int(flip_sides))
         item.custom_id = f"accept:{game_id}:{int(flip_sides)}"
         super().__init__(item)
     
