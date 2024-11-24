@@ -1,5 +1,6 @@
 from enum import Enum
 import itertools
+from pathlib import Path
 from typing import Any, Generator, TypeAlias
 
 from pydantic import BaseModel
@@ -25,17 +26,20 @@ class Orientation(Enum):
     VERTICAL = 1
 
 class MapDetails(BaseModel):
+    short_name: str
     environments: tuple[Environment, ...]
     objectives: tuple[ObjectiveRow, ObjectiveRow, ObjectiveRow, ObjectiveRow, ObjectiveRow]
     orientation: Orientation
     allies: Faction
     axis: Faction
+    tacmap: Path
 
     def get_objectives(self, layout: LayoutType):
         return [row[i] for i, row in zip(layout, self.objectives[1:4])]
 
 MAPS = {
     "Carentan": MapDetails(
+        short_name="Carentan",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -50,9 +54,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/carentan.png")
     ),
 
     "Driel": MapDetails(
+        short_name="Driel",
         environments=(
             Environment.DAWN,
             Environment.NIGHT,
@@ -67,9 +73,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.CW,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/driel.png")
     ),
 
     "El Alamein": MapDetails(
+        short_name="El Alamein",
         environments=(
             Environment.DAY,
             Environment.DUSK,
@@ -84,9 +92,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.CW,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/el_alamein.png")
     ),
 
     "Foy": MapDetails(
+        short_name="Foy",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -98,12 +108,14 @@ MAPS = {
             ("N30 Highway", "Bizory Foy Road", "Eastern Ourthe"),
             ("Road To Bastogne", "Bois Jacques", "Forest Outskirts"),
         ),
-        orientation=Orientation.HORIZONTAL,
+        orientation=Orientation.VERTICAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/foy.png")
     ),
 
     "Hill 400": MapDetails(
+        short_name="Hill 400",
         environments=(
             Environment.DAY,
             # Environment.NIGHT,
@@ -118,9 +130,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/hill_400.png")
     ),
 
     "Hurtgen Forest": MapDetails(
+        short_name="Hurtgen",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -135,9 +149,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/hurtgen_forest.png")
     ),
 
     "Kharkov": MapDetails(
+        short_name="Kharkov",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -152,9 +168,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.SOV,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/kharkov.png")
     ),
 
     "Kursk": MapDetails(
+        short_name="Kursk",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -169,9 +187,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.SOV,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/kursk.png")
     ),
 
     "Mortain": MapDetails(
+        short_name="Mortain",
         environments=(
             Environment.DAY,
             Environment.OVERCAST,
@@ -187,9 +207,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/mortain.png")
     ),
 
     "Omaha Beach": MapDetails(
+        short_name="Omaha Beach",
         environments=(
             Environment.DAY,
             Environment.DUSK,
@@ -204,9 +226,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/omaha_beach.png")
     ),
 
     "Purple Heart Lane": MapDetails(
+        short_name="PHL",
         environments=(
             Environment.OVERCAST,
             Environment.NIGHT,
@@ -221,9 +245,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/purple_heart_lane.png")
     ),
 
     "Remagen": MapDetails(
+        short_name="Remagen",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -238,9 +264,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/remagen.png")
     ),
 
     "Ste. Marie Du Mont": MapDetails(
+        short_name="SMDM",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -255,9 +283,11 @@ MAPS = {
         orientation=Orientation.VERTICAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/ste_marie_du_mont.png")
     ),
 
     "Ste. Mere Eglise": MapDetails(
+        short_name="SME",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -272,9 +302,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/ste_mere_eglise.png")
     ),
 
     "Stalingrad": MapDetails(
+        short_name="Stalingrad",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -289,9 +321,11 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.SOV,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/stalingrad.png")
     ),
 
     "Utah Beach": MapDetails(
+        short_name="Utah Beach",
         environments=(
             Environment.DAY,
             Environment.NIGHT,
@@ -306,6 +340,7 @@ MAPS = {
         orientation=Orientation.HORIZONTAL,
         allies=Faction.US,
         axis=Faction.GER,
+        tacmap=Path("assets/tacmaps/utah_beach.png")
     ),
 }
 

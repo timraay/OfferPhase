@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 import functools
 import logging
 
-from typing import Callable, Optional, Any, Awaitable
+from typing import Callable, Optional, Any, Awaitable, Sequence, TypedDict
 
 import discord
-from discord import ui, app_commands, Interaction, ButtonStyle, Emoji, PartialEmoji, SelectOption
+from discord import Embed, ui, app_commands, Interaction, ButtonStyle, Emoji, PartialEmoji, SelectOption
 from discord.ext import commands
 from discord.utils import escape_markdown as esc_md, MISSING
 
@@ -206,3 +206,7 @@ async def get_command_mention(tree: discord.app_commands.CommandTree, name: str,
 
 def format_url(text: str, url: str):
     return f"[**{text}** 🡥]({url})"
+
+class MessagePayload(TypedDict):
+    content: Optional[str]
+    embeds: Sequence[Embed]

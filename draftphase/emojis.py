@@ -50,6 +50,8 @@ class Emojis(str, Enum):
     environment_night = "🌙"
     environment_dawn = "🌤️"
     environment_dusk = "🌥️"
+    faction_us = "🌥️"
+    faction_ger = "🌥️"
 
 def get_emoji(name: str):
     emoji = Emojis._member_map_.get(name)
