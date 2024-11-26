@@ -32,6 +32,7 @@ class MapDetails(BaseModel, frozen=True):
     orientation: Orientation
     allies: Faction
     axis: Faction
+    flip_sides: bool = False
     tacmap: Path
 
     def get_objectives(self, layout: LayoutType):
@@ -93,6 +94,27 @@ MAPS = {
         allies=Faction.CW,
         axis=Faction.GER,
         tacmap=Path("assets/tacmaps/el_alamein.png")
+    ),
+
+    "Elsenborn Rdige": MapDetails(
+        short_name="Elsenborn",
+        environments=(
+            Environment.DAY,
+            Environment.DAWN,
+            Environment.NIGHT,
+        ),
+        objectives=(
+            ("99th Command Centre", "Gun Battery", "U.S. Camp"),
+            ("Elsenborn Ridge", "Farahilde Farm", "Jensit Pillboxes"),
+            ("Road To Elsenborn Ridge", "Dug Out Tank", "Checkpoint"),
+            ("Erelsdell Farmhouse", "AA Battery", "Hinterburg"),
+            ("Supply Cache", "Foxholes", "Fuel Depot"),
+        ),
+        orientation=Orientation.VERTICAL,
+        allies=Faction.US,
+        axis=Faction.GER,
+        flip_sides=True,
+        tacmap=Path("assets/tacmaps/elsenborn_ridge.png")
     ),
 
     "Foy": MapDetails(

@@ -108,6 +108,9 @@ def draw_factions(
         resample=Image.Resampling.BICUBIC,
     )
 
+    ims = [im_allies, im_axis]
+    if details.flip_sides:
+        ims = ims[::-1]
 
     if details.orientation == Orientation.HORIZONTAL:
         im_axis_coords = (
@@ -128,8 +131,8 @@ def draw_factions(
             (IM_SIZE - f_size) if spaced else f_size,
         )
 
-    im.paste(im_allies, im_allies_coords, mask=im_allies)
-    im.paste(im_axis, im_axis_coords, mask=im_axis)
+    im.paste(ims[0], im_allies_coords, mask=ims[0])
+    im.paste(ims[1], im_axis_coords, mask=ims[1])
 
     return im
 
