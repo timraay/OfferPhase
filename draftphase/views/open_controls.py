@@ -425,7 +425,7 @@ class ControlsView(View):
         self.add_item(
             AcceptOfferButton(ui.Button(
                 label=f"Play as {map_details.allies.value}",
-                emoji=faction_to_emoji(map_details.allies, selected=not disable_accept_allies),
+                emoji=faction_to_emoji(map_details.allies, selected=disable_accept_allies),
                 disabled=disable_accept_allies,
                 style=ButtonStyle.green if disable_accept_allies else ButtonStyle.gray,
                 row=2,
@@ -434,7 +434,7 @@ class ControlsView(View):
         self.add_item(
             AcceptOfferButton(ui.Button(
                 label=f"Play as {map_details.axis.value}",
-                emoji=faction_to_emoji(map_details.axis, selected=not disable_accept_axis),
+                emoji=faction_to_emoji(map_details.axis, selected=disable_accept_axis),
                 disabled=disable_accept_axis,
                 style=ButtonStyle.green if disable_accept_axis else ButtonStyle.gray,
                 row=2,

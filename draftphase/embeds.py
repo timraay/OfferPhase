@@ -87,6 +87,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
             offers,
             max_num_offers=max_num_offers,
             grayscaled=(not game.is_done() and team_idx != game.turn(opponent=game.is_offer_available())),
+            flip_sides=game.flip_sides or False,
         )
         fn = f"team{team_idx}_offers.png"
         file = File(im, filename=fn)

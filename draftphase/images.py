@@ -294,7 +294,7 @@ def offers_to_image_sync(offers: Sequence['Offer'], max_num_offers: int, graysca
 async def offers_to_image(offers: Sequence['Offer'], max_num_offers: int, grayscaled: bool = False, flip_sides: bool = False):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        None, offers_to_image_sync, offers, max_num_offers, grayscaled
+        None, offers_to_image_sync, offers, max_num_offers, grayscaled, flip_sides
     )
 
 def get_single_offer_image_sync(
