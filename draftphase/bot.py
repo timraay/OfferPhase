@@ -12,13 +12,13 @@ class Bot(commands.Bot):
         await load_all_cogs()
         await sync_commands()
 
-        from draftphase.views.start_draft import StartDraftButton
-        from draftphase.views.create_offer import CreateOfferSelect, CreateOfferConfirmButton
-        from draftphase.views.accept_offer import AcceptOfferButton, DeclineOfferButton
+        from draftphase.views.open_controls import (
+            AcceptOfferButton, GetControlsButton, DeclineOfferButton, CreateOfferConfirmButton,
+            SelectOfferSelect, CreateOfferSelect,
+        )
         self.add_dynamic_items(
-            StartDraftButton,
-            CreateOfferSelect, CreateOfferConfirmButton,
-            AcceptOfferButton, DeclineOfferButton
+            AcceptOfferButton, GetControlsButton, DeclineOfferButton, CreateOfferConfirmButton,
+            SelectOfferSelect, CreateOfferSelect,
         )
 
 DISCORD_BOT = Bot(
@@ -37,7 +37,7 @@ async def load_all_cogs():
             except:
                 logging.exception(f"Cog {cog_name} cannot be loaded")
                 pass
-    logging.info('Loaded all cogs')
+    logging.info('Loaded all cogs. Successfully initialized %s', DISCORD_BOT.user)
 
 async def sync_commands():
     try:

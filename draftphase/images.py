@@ -1,9 +1,13 @@
 import asyncio
+from concurrent.futures import Future, ThreadPoolExecutor
+import concurrent.futures
 from enum import Enum
 from io import BytesIO
 import math
 from pathlib import Path
 from typing import Literal, Sequence
+from cachetools import LRUCache, TTLCache, cached
+import concurrent
 from discord import Colour
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
@@ -143,6 +147,7 @@ def draw_map_name(im: Image.Image, name: str, orientation: Orientation):
     im.paste(canvas, mask=canvas)
 
 
+@cached(LRUCache(10))
 def get_placeholder(num: int = 1):
     im = Image.new(mode="RGBA", size=(IM_SIZE, IM_SIZE))
     draw = ImageDraw.Draw(im)
@@ -168,11 +173,12 @@ def get_placeholder(num: int = 1):
 
     return im
 
+@cached(cache=LRUCache(maxsize=100))
 def get_map_image(
     details: MapDetails,
-    layout: LayoutType | None = None,
-    environment: Environment | None = None,
-    selected_team_id: Literal[1, 2] | None = None
+    layout: LayoutType | None,
+    environment: Environment | None,
+    selected_team_id: Literal[1, 2] | None
 ):
     im = open_tacmap(details)
     draw_factions(im, details, selected_team_id=selected_team_id)
@@ -235,25 +241,36 @@ def get_grayscale(im: Image.Image):
     return im
 
 
-def offers_to_image_sync(offers: Sequence['Offer'], grayscaled: bool = False):
-    ims = [
-        get_map_image(
+def offers_to_image_sync(offers: Sequence['Offer'], max_num_offers: int, grayscaled: bool = False, flip_sides: bool = False):
+    # Process individual images inside of a thread pool
+    pool = ThreadPoolExecutor()
+    futs: list[Future] = []
+    for offer in offers:
+        fut = pool.submit(
+            get_map_image,
             details=offer.get_map_details(),
             layout=offer.layout,
             environment=offer.environment,
+            selected_team_id=(1 if flip_sides == bool(offer.offer_no % 2) else 2) if offer.accepted else None,
         )
-        for offer in offers
-    ]
-    im = stack_in_rows(ims, grayscaled=grayscaled)
+        futs.append(fut)
+
+    # Wait for all futures to complete, then close the pool to free resources
+    pool.shutdown(wait=True)
+    ims = [fut.result() for fut in futs]
+
+    # Combine the individual images
+    im = stack_in_rows(ims, maxsize=max_num_offers, grayscaled=grayscaled)
+
     fp = BytesIO()
-    im.save(fp)
+    im.save(fp, "png")
     fp.seek(0)
     return fp
 
-async def offers_to_image(offers: Sequence['Offer'], grayscaled: bool = False):
+async def offers_to_image(offers: Sequence['Offer'], max_num_offers: int, grayscaled: bool = False, flip_sides: bool = False):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        None, offers_to_image_sync, offers, grayscaled
+        None, offers_to_image_sync, offers, max_num_offers, grayscaled
     )
 
 def get_single_offer_image_sync(
@@ -272,7 +289,7 @@ def get_single_offer_image_sync(
     else:
         im = get_placeholder()
     fp = BytesIO()
-    im.save(fp)
+    im.save(fp, "png")
     fp.seek(0)
     return fp
 
@@ -284,6 +301,6 @@ async def get_single_offer_image(
 ):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        None, get_single_offer_image,
+        None, get_single_offer_image_sync,
         details, layout, environment, selected_team_id
     )

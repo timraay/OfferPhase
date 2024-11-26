@@ -29,7 +29,7 @@ def create_tables():
             start_time INTEGER,
             max_num_offers INTEGER NOT NULL,
             flip_sides BOOL,
-            stream_delay INTEGER NOT NULL
+            stream_delay INTEGER
         );
         """)
         cur.execute("""

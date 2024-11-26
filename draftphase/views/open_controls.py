@@ -1,9 +1,11 @@
 import asyncio
+import random
 from re import Match
 from typing import Literal
 from discord import ButtonStyle, Interaction, NotFound, SelectOption, ui, InteractionMessage, Member
-from draftphase.discord_utils import GameStateError, MessagePayload, View, handle_error_wrap
-from draftphase.emojis import Emojis, environment_to_emoji, layout_to_emoji
+from draftphase.bot import DISCORD_BOT
+from draftphase.discord_utils import CustomException, GameStateError, MessagePayload, View, handle_error_wrap
+from draftphase.emojis import Emojis, environment_to_emoji, faction_to_emoji, layout_to_emoji
 from draftphase.game import Game
 from draftphase.maps import MAPS, get_all_layout_combinations, get_layout_from_filtered_idx
 from draftphase.utils import SingletonMeta, safe_create_task
@@ -17,7 +19,7 @@ class ControlsManager(metaclass=SingletonMeta):
         if (old_view := self.get_view(view.game, view.member)):
             await self.delete_view(old_view)
 
-        self.controls[view.game.channel_id][view.member.id] = view
+        self.controls.setdefault(view.game.channel_id, {})[view.member.id] = view
 
     async def delete_view(self, view: 'ControlsView'):
         controls = self.controls.get(view.game.channel_id)
@@ -30,12 +32,28 @@ class ControlsManager(metaclass=SingletonMeta):
             except:
                 pass
 
-    def get_view(self, game: Game, member: Member) -> 'ControlsView':
-        return self.controls[game.channel_id][member.id]
+    def get_view(self, game: Game, member: Member) -> 'ControlsView | None':
+        views = self.controls.get(game.channel_id)
+        if not views:
+            return
+        return views.get(member.id)
+    
+    def safe_get_view(self, game: Game, member: Member) -> 'ControlsView':
+        view = self.get_view(game, member)
+        if not view:
+            raise CustomException(
+                "Something went wrong",
+                "Please dismiss this message and try again",
+                inplace=True,
+            )
+        return view
 
     async def update_for_game(self, game: Game):
         controls = self.controls[game.channel_id]
-        tasks: list[asyncio.Task] = []
+
+        from draftphase.embeds import send_or_edit_game_message
+        await send_or_edit_game_message(DISCORD_BOT, game)
+
         for member_id, control in list(controls.items()):
             control.game = game
             control.reset()
@@ -48,9 +66,6 @@ class ControlsManager(metaclass=SingletonMeta):
 
             task = asyncio.create_task(control.edit())
             task.add_done_callback(__remove_when_not_found)
-            tasks.append(task)
-
-        await asyncio.gather(*tasks)
     
     async def delete_for_game(self, game: Game):
         controls = self.controls.pop(game.channel_id, None)
@@ -82,6 +97,18 @@ class GetControlsButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
+        if not game.is_user_participating(member):
+            await interaction.response.send_message(
+                content=random.choice([
+                    "https://tenor.com/view/nuhuh-zazacat-zaza-cat-nuh-uh-gif-5895922515261135563",
+                    "https://tenor.com/view/byuntear-meme-reaction-emoji-nops-gif-11371827892803687671",
+                    "https://tenor.com/view/not-today-batman-today-not-gif-3191943350122519312",
+                    "https://tenor.com/view/no-kanye-west-all-falls-down-song-nope-stop-right-there-gif-20589089",
+                    "https://tenor.com/view/you-shall-not-pass-lotr-do-not-enter-not-allowed-scream-gif-16729885",
+                    "https://tenor.com/view/no-way-kim-dao-nope-not-allowed-refused-gif-17877789",
+                ])
+            )
+
         view = ControlsView(game, member)
         await view.send(interaction)
 
@@ -107,7 +134,7 @@ class SelectOfferSelect(ui.DynamicItem[ui.Select], template=r"ctrl:(?P<game_id>\
 
         game = Game.load(self.game_id)
 
-        view = ControlsManager().get_view(game, member)
+        view = ControlsManager().safe_get_view(game, member)
         view.reset()
         view.offer_idx = int(self.item.values[0])
 
@@ -150,18 +177,18 @@ class AcceptOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
             raise GameStateError("The offer has already been rejected")
 
         cm = ControlsManager()
-        view = cm.get_view(game, member)
+        view = cm.safe_get_view(game, member)
         view.set_accepted(self.offer_idx, self.faction_idx)
 
         if self.confirmed:
             turn = game.turn()
+            offer = game.offers[self.offer_idx]
             flip_sides = (turn != self.faction_idx)
-            game.accept_offer(flip_sides=flip_sides)
-            safe_create_task(
-                cm.update_for_game(game)
-            )
-
-        await view.edit(interaction=interaction)
+            game.accept_offer(offer, flip_sides=flip_sides)
+            await cm.update_for_game(game)
+            await interaction.response.defer()
+        else:
+            await view.edit(interaction=interaction)
 
 class DeclineOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+):decline:(?P<offer_idx>\d+)(?P<confirm>!)?"):
     def __init__(self, item: ui.Button, game_id: int, offer_idx: int, confirmed: bool = False):
@@ -198,16 +225,15 @@ class DeclineOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>
             raise GameStateError("The offer has already been rejected")
 
         cm = ControlsManager()
-        view = cm.get_view(game, member)
+        view = cm.safe_get_view(game, member)
         view.set_declined(self.offer_idx)
 
         if self.confirmed:
             game.decline_offer()
-            safe_create_task(
-                cm.update_for_game(game)
-            )
-
-        await view.edit(interaction=interaction)
+            await cm.update_for_game(game)
+            await interaction.response.defer()
+        else:
+            await view.edit(interaction=interaction)
 
 class CreateOfferSelect(
     ui.DynamicItem[ui.Select],
@@ -248,7 +274,7 @@ class CreateOfferSelect(
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
-        view = ControlsManager().get_view(game, member)
+        view = ControlsManager().safe_get_view(game, member)
 
         idx = int(self.item.values[0])
         view.set_offer(*self._args, idx) # type: ignore
@@ -279,8 +305,7 @@ class CreateOfferConfirmButton(
     
     @classmethod
     async def from_custom_id(cls, interaction: Interaction, item: ui.Select, match: Match[str]):
-        confirmed = bool(match.group("confirm"))
-        return cls(item, **match.groupdict(), confirmed=confirmed) # type: ignore
+        return cls(item, **match.groupdict()) # type: ignore
     
     @handle_error_wrap
     async def callback(self, interaction: Interaction):
@@ -289,7 +314,7 @@ class CreateOfferConfirmButton(
 
         game = Game.load(self.game_id)
         cm = ControlsManager()
-        view = cm.get_view(game, member)
+        view = cm.safe_get_view(game, member)
 
         map_name, map_details = list(MAPS.items())[self.map_idx]
         environment = map_details.environments[self.environment_idx]
@@ -300,18 +325,17 @@ class CreateOfferConfirmButton(
             environment=environment,
             layout=layout,
         )
-        safe_create_task(
-            cm.update_for_game(game)
-        )
-
-        await view.edit(interaction=interaction)
+        await cm.update_for_game(game)
+        await interaction.response.defer()
 
 
 class ControlsView(View):
     def __init__(self, game: Game, member: Member):
+        super().__init__(timeout=None)
+
         self.game = game
         self.member = member
-        
+
         self.message: InteractionMessage | None = None
         self.reset()
 
@@ -370,15 +394,16 @@ class ControlsView(View):
         self.faction_idx = None
     
     def _get_payload_offer_available(self) -> MessagePayload:
-        turn = self.game.turn()
         offer_options = []
-        for offer in self.game.get_offers_for_team_idx(turn):
+        offers = self.game.get_offers_for_team_idx(self.game.turn(opponent=True))
+        for offer in offers:
             map_details = offer.get_map_details()
             objectives = map_details.get_objectives(offer.layout)
             offer_option = SelectOption(
                 label=f"{offer.map} - {objectives[1]} ({offer.environment.value})",
                 value=str(self.game.offers.index(offer)),
                 emoji=layout_to_emoji(offer.layout, map_details.orientation),
+                default=offer.offer_no == self.offer_idx + 1
             )
             offer_options.append(offer_option)
 
@@ -390,29 +415,37 @@ class ControlsView(View):
             ), self.game.channel_id)
         )
 
+        disable_accept_allies = self.accepted is True and self.faction_idx == 1
+        disable_accept_axis = self.accepted is True and self.faction_idx == 2
+        disable_skip = self.accepted is False
+
+        selected_offer = self.game.offers[self.offer_idx]
+        map_details = selected_offer.get_map_details()
+
         self.add_item(
             AcceptOfferButton(ui.Button(
-                label="Accept",
-                emoji=Emojis.faction_us,
-                disabled=self.accepted is not None,
-                style=ButtonStyle.green if self.faction_idx == 1 else ButtonStyle.gray,
+                label=f"Play as {map_details.allies.value}",
+                emoji=faction_to_emoji(map_details.allies, selected=not disable_accept_allies),
+                disabled=disable_accept_allies,
+                style=ButtonStyle.green if disable_accept_allies else ButtonStyle.gray,
                 row=2,
             ), self.game.channel_id, self.offer_idx, faction_idx=1)
         )
         self.add_item(
             AcceptOfferButton(ui.Button(
-                label="Accept",
-                emoji=Emojis.faction_ger,
-                disabled=self.accepted is not None,
-                style=ButtonStyle.green if self.faction_idx == 2 else ButtonStyle.gray,
+                label=f"Play as {map_details.axis.value}",
+                emoji=faction_to_emoji(map_details.axis, selected=not disable_accept_axis),
+                disabled=disable_accept_axis,
+                style=ButtonStyle.green if disable_accept_axis else ButtonStyle.gray,
                 row=2,
             ), self.game.channel_id, self.offer_idx, faction_idx=2)
         )
+
         self.add_item(
             DeclineOfferButton(ui.Button(
                 label="Skip",
-                disabled=self.accepted is not None,
-                style=ButtonStyle.green if self.faction_idx is None else ButtonStyle.gray,
+                disabled=disable_skip,
+                style=ButtonStyle.green if disable_skip else ButtonStyle.gray,
                 row=2,
             ), self.game.channel_id, self.offer_idx)
         )
@@ -440,7 +473,8 @@ class ControlsView(View):
 
         return {
             "content": content,
-            "embeds": []
+            "embeds": [],
+            "view": self,
         }
 
     def _get_payload_draft_offer(self) -> MessagePayload:
@@ -536,7 +570,8 @@ class ControlsView(View):
 
         return {
             "content": "Make an offer.",
-            "embeds": []
+            "embeds": [], # TODO: Add embed
+            "view": self,
         }
 
     def get_payload(self) -> MessagePayload:
@@ -544,8 +579,7 @@ class ControlsView(View):
 
         if not self.game.is_users_turn(self.member):
             return {
-                "content": "*Waiting for opponent...*",
-                "embeds": []
+                "content": "*Waiting for opponent...*"
             }
         
         if self.game.is_offer_available():
@@ -563,7 +597,8 @@ class ControlsView(View):
         if not self.message:
             raise Exception("Unknown message")
 
-        payload = self.get_payload()
+        payload: dict = self.get_payload() # type: ignore
+        payload.setdefault("view", None)
         if interaction:
             await interaction.response.edit_message(**payload)
         else:

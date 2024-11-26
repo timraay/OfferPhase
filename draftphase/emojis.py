@@ -3,7 +3,7 @@ from typing import Literal
 
 from discord import Colour
 
-from draftphase.maps import Environment, LayoutType, Orientation
+from draftphase.maps import Environment, Faction, LayoutType, Orientation
 
 TEAM1_COLOR = Colour(0x1a4483)
 TEAM2_COLOR = Colour(0xad2020)
@@ -50,8 +50,14 @@ class Emojis(str, Enum):
     environment_night = "🌙"
     environment_dawn = "🌤️"
     environment_dusk = "🌥️"
-    faction_us = "🌥️"
-    faction_ger = "🌥️"
+    faction_us = "<faction_us:1310943564859179008>"
+    faction_us_selected = "<faction_us_selected:1310943572899663872>"
+    faction_sov = "<faction_sov:1310943547456880691>"
+    faction_sov_selected = "<faction_sov_selected:1310943557091201134>"
+    faction_ger = "<faction_ger:1310943529169584139>"
+    faction_ger_selected = "<faction_ger_selected:1310943536752889897>"
+    faction_cw = "<faction_cw:1310943514452037682>"
+    faction_cw_selected = "<faction_cw_selected:1310943522370621483>"
 
 def get_emoji(name: str):
     emoji = Emojis._member_map_.get(name)
@@ -66,6 +72,12 @@ def layout_to_emoji(layout: LayoutType, orientation: Orientation):
 
 def environment_to_emoji(environment: Environment):
     key = f"environment_{environment.value.lower()}"
+    return get_emoji(key)
+
+def faction_to_emoji(faction: Faction, selected: bool = False):
+    key = f"faction_{faction.name.lower()}"
+    if selected:
+        key += "_selected"
     return get_emoji(key)
 
 def player_idx_to_emoji(player_idx: Literal[1, 2]):

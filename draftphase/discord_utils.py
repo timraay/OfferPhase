@@ -2,10 +2,11 @@ from datetime import datetime, timedelta
 import functools
 import logging
 
-from typing import Callable, Optional, Any, Awaitable, Sequence, TypedDict
+from typing import Callable, Optional, Any, Awaitable, Sequence
+from typing_extensions import TypedDict, NotRequired
 
 import discord
-from discord import Embed, ui, app_commands, Interaction, ButtonStyle, Emoji, PartialEmoji, SelectOption
+from discord import Attachment, Embed, File, ui, app_commands, Interaction, ButtonStyle, Emoji, PartialEmoji, SelectOption
 from discord.ext import commands
 from discord.utils import escape_markdown as esc_md, MISSING
 
@@ -118,15 +119,18 @@ class GameStateError(Exception):
 
 class CustomException(Exception):
     """Raised to log a custom exception"""
-    def __init__(self, error, *args, log_traceback: bool = False):
+    def __init__(self, error, *args, log_traceback: bool = False, inplace: bool = False):
         self.error = error
         self.log_traceback = log_traceback
+        self.inplace = inplace
         super().__init__(*args)
 
 
 async def handle_error(interaction: Interaction | commands.Context, error: Exception):
     if isinstance(error, (app_commands.CommandInvokeError, commands.CommandInvokeError)):
         error = error.original
+
+    inplace = False
 
     if isinstance(error, (app_commands.CommandNotFound, commands.CommandNotFound)):
         embed = get_error_embed(title='Unknown command!')
@@ -135,6 +139,7 @@ async def handle_error(interaction: Interaction | commands.Context, error: Excep
         embed = get_error_embed(title=error.error, description=str(error))
         if error.log_traceback:
             logging.error("An unexpected error occured when handling an interaction", exc_info=error)
+        inplace = error.inplace
     
     elif isinstance(error, GameStateError):
         embed = get_error_embed("Game does not allow for this action in the current state.", str(error))
@@ -173,6 +178,8 @@ async def handle_error(interaction: Interaction | commands.Context, error: Excep
     if isinstance(interaction, Interaction):
         if interaction.response.is_done() or interaction.is_expired():
             await interaction.followup.send(embed=embed, ephemeral=True)
+        elif inplace:
+            await interaction.response.edit_message(embed=embed, content=None, view=None, attachments=[])
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
@@ -208,5 +215,6 @@ def format_url(text: str, url: str):
     return f"[**{text}** 🡥]({url})"
 
 class MessagePayload(TypedDict):
-    content: Optional[str]
-    embeds: Sequence[Embed]
+    content: NotRequired[str | None]
+    embeds: NotRequired[Sequence[Embed]]
+    view: NotRequired[ui.View]

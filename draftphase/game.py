@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Self
 from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
@@ -63,7 +63,7 @@ class Offer(BaseModel):
             return self
 
     @classmethod
-    def load_for_game(cls, game_id: int):
+    def load_for_game(cls, game_id: int) -> list[Self]:
         offers = []
         with get_cursor() as cur:
             cur.execute("SELECT * FROM offers WHERE game_id = ? ORDER BY offer_no", (game_id,))
@@ -130,7 +130,7 @@ class Streamer(BaseModel):
             return self
 
     @classmethod
-    def load_for_game(cls, game_id: int):
+    def load_for_game(cls, game_id: int) -> list[Self]:
         streamers = []
         with get_cursor() as cur:
             cur.execute("SELECT * FROM streamers WHERE game_id = ? ORDER BY id", (game_id,))
@@ -204,11 +204,12 @@ class Game(BaseModel):
         message_id: int | None = None,
         subtitle: str | None = None,
         max_num_offers: int = MAX_OFFERS,
+        stream_delay: int = STREAM_DELAY,
     ):
         with get_cursor() as cur:
             cur.execute(
-                "INSERT INTO games(message_id, channel_id, guild_id, team1_id, team2_id, subtitle, max_num_offers) VALUES (?,?,?,?,?) RETURNING *",
-                (message_id, channel.id, channel.guild.id, team1_id, team2_id, subtitle, max_num_offers)
+                "INSERT INTO games(message_id, channel_id, guild_id, team1_id, team2_id, subtitle, max_num_offers, stream_delay) VALUES (?,?,?,?,?,?,?,?) RETURNING *",
+                (message_id, channel.id, channel.guild.id, team1_id, team2_id, subtitle, max_num_offers, stream_delay)
             )
             data = cur.fetchone()
 
@@ -226,18 +227,19 @@ class Game(BaseModel):
             )
     
     @classmethod
-    def load(cls, game_id: int):
+    def load(cls, channel_id: int):
         with get_cursor() as cur:
-            cur.execute("SELECT * FROM games WHERE id = ?", (game_id,))
+            cur.execute("SELECT * FROM games WHERE channel_id = ?", (channel_id,))
             data = cur.fetchone()
             if not data:
-                raise ValueError("No game exists with ID %s" % game_id)
+                raise ValueError("No game exists with ID %s" % channel_id)
             
-            offers = Offer.load_for_game(int(data[0]))
-            streamers = Offer.load_for_game(int(data[0]))
+            channel_id = int(data[1])
+            offers = Offer.load_for_game(channel_id)
+            streamers = Streamer.load_for_game(channel_id)
             return cls(
                 message_id=data[0],
-                channel_id=data[1],
+                channel_id=channel_id,
                 guild_id=data[2],
                 team1_id=data[3],
                 team2_id=data[4],
@@ -286,7 +288,21 @@ class Game(BaseModel):
             raise ValueError("Invalid team ID")
         
     def turn(self, *, opponent: bool = False):
-        return 1 if (bool(len(self.offers) % 2) == opponent) else 2
+        if (len(self.offers) % 2 == 0) != opponent:
+            return 1
+        else:
+            return 2
+
+    def is_user_participating(self, member: Member):
+        if member.guild_permissions.administrator:
+            return True
+
+        if discord.utils.get(member.roles, id=self.team1_id) is None:
+            return False
+        if discord.utils.get(member.roles, id=self.team2_id) is None:
+            return False
+
+        return True
 
     def is_users_turn(self, member: Member):
         if member.guild_permissions.administrator:
@@ -309,7 +325,13 @@ class Game(BaseModel):
         return bool(self.offers and self.offers[-1].accepted is None)
 
     def is_done(self) -> bool:
-        return bool(self.offers and self.offers[-1].accepted is True)
+        return self.get_accepted_offer() is not None
+    
+    def get_accepted_offer(self) -> Offer | None:
+        for offer in self.offers:
+            if offer.accepted:
+                return offer
+        return None
 
     def create_offer(self, map: str, environment: Environment, layout: LayoutType):
         if self.is_done():
@@ -319,14 +341,24 @@ class Game(BaseModel):
         
         return Offer.create(self, map=map, environment=environment, layout=layout)
 
-    def accept_offer(self, flip_sides: bool):
+    def accept_offer(self, offer: Offer, flip_sides: bool):
+        if offer.game_id != self.channel_id:
+            raise ValueError("Offer is not part of this game")
+
         if self.is_done():
             raise GameStateError("Game is already done")
         if not self.is_offer_available():
             raise GameStateError("All offers have been answered already")
 
-        self.offers[-1].accepted = True
+        latest_offer = self.offers[-1]
+        if offer.id != latest_offer.id:
+            latest_offer.accepted = False
+            latest_offer.save()
+
+        offer.accepted = True
         self.flip_sides = flip_sides
+
+        offer.save()
         self.save()
 
     def decline_offer(self):
@@ -336,4 +368,4 @@ class Game(BaseModel):
             raise GameStateError("All offers have been answered already")
 
         self.offers[-1].accepted = False
-        self.save()
+        self.offers[-1].save()

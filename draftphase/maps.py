@@ -25,7 +25,7 @@ class Orientation(Enum):
     HORIZONTAL = 0
     VERTICAL = 1
 
-class MapDetails(BaseModel):
+class MapDetails(BaseModel, frozen=True):
     short_name: str
     environments: tuple[Environment, ...]
     objectives: tuple[ObjectiveRow, ObjectiveRow, ObjectiveRow, ObjectiveRow, ObjectiveRow]

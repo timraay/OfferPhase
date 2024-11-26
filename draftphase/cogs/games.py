@@ -1,11 +1,10 @@
-from discord import Embed, File, Permissions, Role, TextChannel, app_commands, Interaction, Member
+from discord import Permissions, Role, TextChannel, app_commands, Interaction
 from discord.ext import commands
-from discord.utils import format_dt
 
 from draftphase.bot import Bot
 from draftphase.discord_utils import CustomException, get_success_embed
+from draftphase.embeds import create_game, get_game_embeds, send_or_edit_game_message
 from draftphase.game import Game
-from draftphase.images import offers_to_image
 
 @app_commands.guild_only()
 class GamesCog(commands.GroupCog, group_name="match"):
@@ -44,16 +43,26 @@ class GamesCog(commands.GroupCog, group_name="match"):
                 )
             )
 
-        game = Game.create(
-            channel=interaction.channel,
-            team1_id=team1.id,
-            team2_id=team2.id,
-            subtitle=subtitle,
+        await create_game(
+            interaction.client,
+            interaction.channel,
+            team1.id,
+            team2.id,
+            subtitle,
         )
 
         await interaction.response.send_message(embed=get_success_embed(
-            title="Match created!"
-        ))
+            title="Match created!",
+        ), ephemeral=True)
+
+    @app_commands.command(name="resend")
+    @app_commands.default_permissions(manage_guild=True)
+    async def resend_draft_phase(self, interaction: Interaction):
+        assert interaction.channel_id is not None
+        game = Game.load(interaction.channel_id)
+        await interaction.response.defer(ephemeral=True)
+        await send_or_edit_game_message(interaction.client, game)
+        await interaction.followup.send(embed=get_success_embed("Resent message!"))
 
 async def setup(bot: Bot):
     await bot.add_cog(GamesCog(bot))
