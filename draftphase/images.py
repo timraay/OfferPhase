@@ -46,9 +46,9 @@ def draw_layout(im: Image.Image, layout: LayoutType, orientation: Orientation):
     do_flip = orientation == Orientation.VERTICAL
 
     def get_y(p: int):
-        return (p + 1.5) * line_width
+        return (p + 1.5) * line_width * 2
 
-    line_width = IM_SIZE / 5
+    line_width = IM_SIZE / (5 * 2)
     x = x_old = line_width / -2
     y = y_old = get_y(layout[0])
     
@@ -68,6 +68,27 @@ def draw_layout(im: Image.Image, layout: LayoutType, orientation: Orientation):
             fill=Colors.OBJECTIVE_LINE.value,
             width=OBJECTIVE_LINE_THICKNESS
         )
+        
+        x_old = x
+        y_old = y
+        x += line_width
+        draw.circle(
+            (y, x) if do_flip else (x, y),
+            radius=(OBJECTIVE_LINE_THICKNESS / 2) - 1,
+            fill=Colors.OBJECTIVE_LINE.value
+        )
+        draw.line(
+            (y_old, x_old, y, x) if do_flip else (x_old, y_old, x, y),
+            fill=Colors.OBJECTIVE_LINE.value,
+            width=OBJECTIVE_LINE_THICKNESS
+        )
+
+        # Draw strongpoints
+        # draw.circle(
+        #     (y, x-(line_width/2)) if do_flip else (x-(line_width/2), y),
+        #     radius=(OBJECTIVE_LINE_THICKNESS / 2) + 10,
+        #     fill=Colors.OBJECTIVE_LINE.value,
+        # )
     
     return im
 
