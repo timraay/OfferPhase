@@ -1,18 +1,17 @@
 import asyncio
 from concurrent.futures import Future, ThreadPoolExecutor
-import concurrent.futures
 from enum import Enum
 from io import BytesIO
 import math
 from pathlib import Path
 from typing import Literal, Sequence
-from cachetools import LRUCache, TTLCache, cached
-import concurrent
+from cachetools import LRUCache, cached
 from discord import Colour
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 
+from draftphase.config import Orientation
 from draftphase.game import Offer
-from draftphase.maps import Environment, Faction, MapDetails, LayoutType, Orientation
+from draftphase.maps import Environment, Faction, MapDetails, LayoutType
 
 IM_SIZE = 400
 IM_STACK_GAP_SIZE = int(0.1 * IM_SIZE)
@@ -31,14 +30,15 @@ def open_tacmap(details: MapDetails):
     return im
 
 def open_faction(faction: Faction, selected: bool = False):
-    fn = faction.value
     if selected:
-        fn += "_selected"
-    im = Image.open(Path(f"assets/factions/{fn}.png"))
+        path = faction.images.selected
+    else:
+        path = faction.images.default
+    im = Image.open(path)
     return im
 
 def open_environment(environment: Environment):
-    im = Image.open(Path(f"assets/environments/{environment.value}.png"))
+    im = Image.open(environment.image)
     return im
 
 def draw_layout(im: Image.Image, layout: LayoutType, orientation: Orientation):
@@ -113,20 +113,20 @@ def draw_factions(
         ims = ims[::-1]
 
     if details.orientation == Orientation.HORIZONTAL:
-        im_axis_coords = (
+        im_allies_coords = (
             0,
             IM_SIZE - f_size,
         )
-        im_allies_coords = (
+        im_axis_coords = (
             (IM_SIZE - f_size) if spaced else f_size,
             IM_SIZE - f_size,
         )
     else:
-        im_axis_coords = (
+        im_allies_coords = (
             IM_SIZE - f_size,
             0,
         )
-        im_allies_coords = (
+        im_axis_coords = (
             IM_SIZE - f_size,
             (IM_SIZE - f_size) if spaced else f_size,
         )
@@ -274,7 +274,7 @@ def offers_to_image_sync(offers: Sequence['Offer'], max_num_offers: int, graysca
             get_map_image,
             details=offer.get_map_details(),
             layout=offer.layout,
-            environment=offer.environment,
+            environment=offer.get_environment(),
             selected_team_id=(1 if flip_sides == bool(offer.offer_no % 2) else 2) if offer.accepted else None,
         )
         futs.append(fut)

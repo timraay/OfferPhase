@@ -21,5 +21,5 @@ logging.basicConfig(
 
 if __name__ == '__main__':
     create_tables()
-    token = get_config()["Bot"]["Token"]
-    DISCORD_BOT.run(token)
+    config = get_config()
+    DISCORD_BOT.run(config.bot.token)

@@ -5,10 +5,10 @@ from typing import Literal
 from discord import ButtonStyle, Interaction, NotFound, SelectOption, ui, InteractionMessage, Member
 from draftphase.bot import DISCORD_BOT
 from draftphase.discord_utils import CustomException, GameStateError, MessagePayload, View, handle_error_wrap
-from draftphase.emojis import Emojis, environment_to_emoji, faction_to_emoji, layout_to_emoji
+from draftphase.emojis import faction_to_emoji, layout_to_emoji
 from draftphase.game import Game
 from draftphase.maps import MAPS, get_all_layout_combinations, get_layout_from_filtered_idx
-from draftphase.utils import SingletonMeta, safe_create_task
+from draftphase.utils import SingletonMeta
 
 
 class ControlsManager(metaclass=SingletonMeta):
@@ -322,7 +322,7 @@ class CreateOfferConfirmButton(
 
         game.create_offer(
             map=map_name,
-            environment=environment,
+            environment=environment.key,
             layout=layout,
         )
         await cm.update_for_game(game)
@@ -398,9 +398,10 @@ class ControlsView(View):
         offers = self.game.get_offers_for_team_idx(self.game.turn(opponent=True))
         for offer in offers:
             map_details = offer.get_map_details()
+            environment = offer.get_environment()
             objectives = map_details.get_objectives(offer.layout)
             offer_option = SelectOption(
-                label=f"{offer.map} - {objectives[1]} ({offer.environment.value})",
+                label=f"{map_details.name} - {objectives[1]} ({environment.name})",
                 value=str(self.game.offers.index(offer)),
                 emoji=layout_to_emoji(offer.layout, map_details.orientation),
                 default=offer.offer_no == self.offer_idx + 1
@@ -424,7 +425,7 @@ class ControlsView(View):
 
         self.add_item(
             AcceptOfferButton(ui.Button(
-                label=f"Play as {map_details.allies.value}",
+                label=f"Play as {map_details.allies.name}",
                 emoji=faction_to_emoji(map_details.allies, selected=disable_accept_allies),
                 disabled=disable_accept_allies,
                 style=ButtonStyle.green if disable_accept_allies else ButtonStyle.gray,
@@ -433,7 +434,7 @@ class ControlsView(View):
         )
         self.add_item(
             AcceptOfferButton(ui.Button(
-                label=f"Play as {map_details.axis.value}",
+                label=f"Play as {map_details.axis.name}",
                 emoji=faction_to_emoji(map_details.axis, selected=disable_accept_axis),
                 disabled=disable_accept_axis,
                 style=ButtonStyle.green if disable_accept_axis else ButtonStyle.gray,
@@ -458,7 +459,7 @@ class ControlsView(View):
         if self.accepted is True:
             assert self.faction_idx is not None
             self.add_item(AcceptOfferButton(confirm_button, self.game.channel_id, self.offer_idx, self.faction_idx, confirmed=True))
-            content = f"Are you sure you want to play **{self.game.offers[-1].map} {'Allies' if self.faction_idx == 1 else 'Axis'}**?"
+            content = f"Are you sure you want to play **{map_details.name} {'Allies' if self.faction_idx == 1 else 'Axis'}**?"
         elif self.accepted is False:
             self.add_item(DeclineOfferButton(confirm_button, self.game.channel_id, self.offer_idx, confirmed=True))
             content = f"Are you sure you want to skip this offer? You can always accept it at a later turn."
@@ -487,11 +488,11 @@ class ControlsView(View):
                     placeholder="Map...",
                     options=[
                         SelectOption(
-                            label=m, value=str(i),
-                            default=(m == self.map_name),
+                            label=m.name, value=str(i),
+                            default=(m.key == self.map_name),
                             emoji="🗺️",
                         )
-                        for i, m in enumerate(MAPS.keys())
+                        for i, m in enumerate(MAPS.values())
                         if m not in used_maps
                     ],
                 ),
@@ -504,9 +505,9 @@ class ControlsView(View):
                     placeholder="Environment...",
                     options=[
                         SelectOption(
-                            label=e, value=str(i),
+                            label=e.name, value=str(i),
                             default=(self.environment_idx == i),
-                            emoji=environment_to_emoji(e)
+                            emoji=e.emoji
                         )
                         for i, e in enumerate(self.map.environments)
                     ] if self.map else [SelectOption(label="Day", value="0")],

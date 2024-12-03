@@ -3,3 +3,4 @@ pillow>=10.4.0
 cachetools
 pydantic==2.*
 typing_extensions>=4.0.0
+pyyaml

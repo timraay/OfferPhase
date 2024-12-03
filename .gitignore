@@ -1,6 +1,7 @@
 app.db
 app.log
-config.ini
+config.yml
+config.yaml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -3,10 +3,9 @@ import discord
 from discord.utils import format_dt
 
 from draftphase.discord_utils import MessagePayload, View
-from draftphase.emojis import faction_to_emoji
 from draftphase.game import Game
 from draftphase.images import get_single_offer_image, offers_to_image
-from draftphase.maps import MAPS, Environment, LayoutType
+from draftphase.maps import MAPS, Environment, LayoutType, MapDetails
 from draftphase.views.open_controls import GetControlsButton
 
 
@@ -44,7 +43,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     embed = Embed(title=f"{team1_name} vs {team2_name}")
     embed.add_field(
         name="Allies" if game.is_done() else "Team 1",
-        value=(f"{faction_to_emoji(map_details.allies)} " if map_details else "") + (team2_mention if game.flip_sides else team1_mention),
+        value=(f"{map_details.allies.emojis.default} " if map_details else "") + (team2_mention if game.flip_sides else team1_mention),
         inline=True,
     )
     embed.add_field(
@@ -54,7 +53,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     )
     embed.add_field(
         name="Axis" if game.is_done() else "Team 2",
-        value=(f"{faction_to_emoji(map_details.axis)} " if map_details else "") + (team1_mention if game.flip_sides else team2_mention),
+        value=(f"{map_details.axis.emojis.default} " if map_details else "") + (team1_mention if game.flip_sides else team2_mention),
         inline=True,
     )
 
@@ -104,10 +103,9 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     if game.is_done():
         offer = game.get_accepted_offer()
         assert offer is not None
-
         embed, file = await get_single_offer_embed(
-            map_name=offer.map,
-            environment=offer.environment,
+            map_details=offer.get_map_details(),
+            environment=offer.get_environment(),
             midpoint_idx=offer.layout[1],
             layout=offer.layout,
             comment=f"Accepted by {team1_name if game.turn() == 1 else team2_name}"
@@ -117,8 +115,8 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     elif game.is_offer_available():
         offer = game.offers[-1]
         embed, file = await get_single_offer_embed(
-            map_name=offer.map,
-            environment=offer.environment,
+            map_details=offer.get_map_details(),
+            environment=offer.get_environment(),
             midpoint_idx=offer.layout[1],
             layout=offer.layout,
             comment=f"Offered to {team1_name if game.turn() == 1 else team2_name}"
@@ -147,25 +145,28 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     return payload, files
 
 async def get_single_offer_embed(
-    map_name: str | None = None,
+    map_details: MapDetails | None = None,
     environment: Environment | None = None,
     midpoint_idx: int | None = None,
     layout: LayoutType | None = None,
     comment: str | None = None,
 ):
-    if not map_name:
-        map_details = None
+    if not map_details:
         im = await get_single_offer_image()
     else:
-        map_details = MAPS[map_name]
         im = await get_single_offer_image(
             details=map_details,
             layout=layout,
             environment=environment,
         )
 
+    if map_details:
+        map_name = map_details.name
+    else:
+        map_name = "-"
+
     if environment:
-        environment_name = environment.value
+        environment_name = environment.name
     else:
         environment_name = "-"
     
@@ -178,7 +179,7 @@ async def get_single_offer_embed(
     embed = Embed(color=Colour(0xffffff))
     embed.add_field(
         name=comment or "​",
-        value=f"-# **Map**\n{map_name or '-'}",
+        value=f"-# **Map**\n{map_name}",
     )
     embed.add_field(
         name="​",

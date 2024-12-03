@@ -4,9 +4,10 @@ from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
 
+from draftphase.config import get_config
 from draftphase.db import get_cursor
 from draftphase.discord_utils import GameStateError
-from draftphase.maps import MAPS, Environment, LayoutType
+from draftphase.maps import ENVIRONMENTS, MAPS, Environment, LayoutType
 
 MAX_OFFERS = 10
 STREAM_DELAY = 15
@@ -30,12 +31,12 @@ class Offer(BaseModel):
     offer_no: int
     player_id: int
     map: str
-    environment: Environment
+    environment: str
     layout: LayoutType
     accepted: bool | None
     
     @classmethod
-    def create(cls, game: 'Game', map: str, environment: Environment, layout: LayoutType):
+    def create(cls, game: 'Game', map: str, environment: str, layout: LayoutType):
         offer_no = len(game.offers) + 1
         player_id = game.team_idx_to_id(game.turn())
 
@@ -45,7 +46,7 @@ class Offer(BaseModel):
         with get_cursor() as cur:
             cur.execute(
                 "INSERT INTO offers(game_id, offer_no, player_id, map, environment, layout) VALUES (?,?,?,?,?,?) RETURNING *",
-                (game.channel_id, offer_no, player_id, map, environment.value, "".join([str(i) for i in layout]))
+                (game.channel_id, offer_no, player_id, map, environment, "".join([str(i) for i in layout]))
             )
             data = cur.fetchone()
 
@@ -55,7 +56,7 @@ class Offer(BaseModel):
                 offer_no=data[2],
                 player_id=data[3],
                 map=data[4],
-                environment=Environment(data[5]),
+                environment=data[5],
                 layout=tuple(data[6]),
                 accepted=None if data[7] is None else bool(data[7]),
             )
@@ -75,7 +76,7 @@ class Offer(BaseModel):
                     offer_no=data[2],
                     player_id=data[3],
                     map=data[4],
-                    environment=Environment(data[5]),
+                    environment=data[5],
                     layout=tuple(data[6]),
                     accepted=None if data[7] is None else bool(data[7]),
                 ))
@@ -102,6 +103,9 @@ class Offer(BaseModel):
     
     def get_map_details(self):
         return MAPS[self.map]
+    
+    def get_environment(self):
+        return ENVIRONMENTS[self.environment]
 
 class Streamer(BaseModel):
     id: int
@@ -333,7 +337,7 @@ class Game(BaseModel):
                 return offer
         return None
 
-    def create_offer(self, map: str, environment: Environment, layout: LayoutType):
+    def create_offer(self, map: str, environment: str, layout: LayoutType):
         if self.is_done():
             raise GameStateError("Game is already done")
         if self.is_offer_available():

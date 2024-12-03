@@ -1,0 +1,452 @@
+#######################################################################
+#    Make sure you do NOT edit the `config.template.yaml` file!       #
+#  Copy it, rename the copy to `config.yaml`, and edit that instead.  #
+#######################################################################
+
+bot:
+  # Your bot token. Keep this a secret.
+  token: 
+
+  # A list of emojis that the bot uses. These can all be found in the /assets/emojis/ folder.
+  # Upload these to the Discord developer portal, then paste the associated IDs here.
+  emojis:
+    obj_vert_222: 
+    obj_vert_221: 
+    obj_vert_212: 
+    obj_vert_211: 
+    obj_vert_210: 
+    obj_vert_122: 
+    obj_vert_121: 
+    obj_vert_112: 
+    obj_vert_111: 
+    obj_vert_110: 
+    obj_vert_101: 
+    obj_vert_100: 
+    obj_vert_012: 
+    obj_vert_011: 
+    obj_vert_010: 
+    obj_vert_001: 
+    obj_vert_000: 
+    obj_hor_222: 
+    obj_hor_221: 
+    obj_hor_212: 
+    obj_hor_211: 
+    obj_hor_210: 
+    obj_hor_122: 
+    obj_hor_121: 
+    obj_hor_112: 
+    obj_hor_111: 
+    obj_hor_110: 
+    obj_hor_101: 
+    obj_hor_100: 
+    obj_hor_012: 
+    obj_hor_011: 
+    obj_hor_010: 
+    obj_hor_001: 
+    obj_hor_000: 
+
+# A list of factions that exist in the game. These can be referenced by maps.
+factions:
+  US:
+    # The name of the faction
+    name: US
+    emojis:
+      # The default emoji for this faction
+      default: <faction_us:1310943564859179008>
+      # A highlighted variant of the default emoji
+      selected: <faction_us_selected:1310943572899663872>
+    images:
+      # The icon for this faction. Must be 256x256 pixels.
+      default: "assets/factions/US.png"
+      # A highlighted variant of the default icon. Must be 256x256 pixels.
+      selected: "assets/factions/US_selected.png"
+
+  SOV:
+    name: SOV
+    emojis:
+      default: <faction_sov:1310943547456880691>
+      selected: <faction_sov_selected:1310943557091201134>
+    images:
+      default: "assets/factions/SOV.png"
+      selected: "assets/factions/SOV_selected.png"
+
+  GER:
+    name: GER
+    emojis:
+      default: <faction_ger:1310943529169584139>
+      selected: <faction_ger_selected:1310943536752889897>
+    images:
+      default: "assets/factions/GER.png"
+      selected: "assets/factions/GER_selected.png"
+
+  CW:
+    name: CW
+    emojis:
+      default: <faction_cw:1310943514452037682>
+      selected: <faction_cw_selected:1310943522370621483>
+    images:
+      default: "assets/factions/CW.png"
+      selected: "assets/factions/CW_selected.png"
+
+#  ...:
+#    name: ...
+#    emojis:
+#      default: ...
+#      selected: ...
+#    images:
+#      default: "assets/factions/....png"
+#      selected: "assets/factions/..._selected.png"
+
+
+# A list of generalized environments that exist in the game. These can be referenced by maps, which
+# need to have one or more environments.
+environments:
+  day:
+    # The name of the environment
+    name: Day
+    # An emoji that describes the environment
+    emoji: ☀️
+    # The path to an icon for this environment. Must be 80x80 pixels.
+    image: "assets/environments/day.png"
+
+  overcast:
+    name: Overcast
+    emoji: ☁️
+    image: "assets/environments/overcast.png"
+
+  night:
+    name: Night
+    emoji: 🌙
+    image: "assets/environments/night.png"
+
+  dawn:
+    name: Dawn
+    emoji: 🌤️
+    image: "assets/environments/dawn.png"
+
+  dusk:
+    name: Dusk
+    emoji: 🌥️
+    image: "assets/environments/dusk.png"
+
+#  ...:
+#    name: ...
+#    emoji: ☀️
+#    image: "assets/environments/....png"
+
+
+# A list of all maps available in the draft. Maps can be added at any time, but be mindful that
+# removing an existing map or changing its key will cause existing draft phases to break.
+maps:
+  carentan:
+    # The name of the map
+    name: Carentan
+
+    # A shorter name for the map, used when rendering images where space is limited.
+    # The recommended max length is roughly 12 characters.
+    short_name: Carentan
+
+    # The environments available to this map. Must be one of the environments defined above.
+    environments: [ day, night ]
+
+    # The orientation of the map. Must be either "horizontal" (left-to-right) or "vertical" (top-to-bottom).
+    orientation: horizontal
+
+    # The names of all objectives on the map. Objectives are grouped by rows (5 rows of 3 sectors).
+    # If the map is oriented horizontally, rows are from left to right, with each row's sectors
+    #   ordered from top to bottom.
+    # If the map is oriented vertically, rows are from top to bottom, with each row's sectors
+    #   ordered from left to right.
+    objectives:
+    - [ Blactot, 502nd Start, Farm Ruins ]
+    - [ Pumping Station, Ruins, Derailed Train ]
+    - [ Canal Crossing, Town Center, Train Station ]
+    - [ Customs, Rail Crossing, Mount Halais ]
+    - [ Canal Locks, Rail Causeway, La Maison Des Ormes ]
+
+    # The allied faction on this map. Must be one of the factions defined above.
+    allies: US
+
+    # The axis faction on this map. Must be one of the factions defined above.
+    axis: GER
+
+    # Whether to flip which sides of the map each respective faction has their HQ.
+    # When set to `false`, assumes the allied HQ is in the 1st row of sectors (north or west depending on
+    #   the orientation) and axis HQ in the 5th row (south or east).
+    # By setting this to true, allied HQ moves to the 5th sector and axis HQ to the 1st sector.
+    flip_sides: false
+
+    # The path to the tacmap of this map. Must be 400x400 pixels.
+    tacmap: "assets/tacmaps/carentan.png"
+
+  driel:
+    name: Driel
+    short_name: Driel
+    environments: [ dawn, night ]
+    objectives:
+    - [ Oosterbeek Approach, Roseander Polder, Kasteel Rosande ]
+    - [ Boatyard, Bridgeway, Rijn Banks ]
+    - [ Brick Factory, Railway Bridge, Gun Emplacements ]
+    - [ Rietveld, South Railway, Middel Road ]
+    - [ Orchards, Schaduwwolken Farm, Fields ]
+    orientation: vertical
+    allies: CW
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/driel.png"
+
+  el_alamein:
+    name: El Alamein
+    short_name: El Alamein
+    environments: [ day, dusk ]
+    objectives:
+    - [ Vehicle Depot, Artillery Guns, Miteiriya Ridge ]
+    - [ Hamlet Ruins, El Mreir, Watchtower ]
+    - [ Desert Rat Trenches, Oasis, Valley ]
+    - [ Fuel Depot, Airfield Command, Airfield Hangars ]
+    - [ Cliffside Village, Ambushed Convoy, Quarry ]
+    orientation: horizontal
+    allies: CW
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/el_alamein.png"
+
+  elsenborn_ridge:
+    name: Elsenborn Ridge
+    short_name: Elsenborn
+    environments: [ day, dawn, night ]
+    objectives:
+    - [ 99th Command Centre, Gun Battery, U.S. Camp ]
+    - [ Elsenborn Ridge, Farahilde Farm, Jensit Pillboxes ]
+    - [ Road To Elsenborn Ridge, Dug Out Tank, Checkpoint ]
+    - [ Erelsdell Farmhouse, AA Battery, Hinterburg ]
+    - [ Supply Cache, Foxholes, Fuel Depot ]
+    orientation: vertical
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/elsenborn_ridge.png"
+
+  foy:
+    name: Foy
+    short_name: Foy
+    environments: [ day, night ]
+    objectives:
+    - [ Road To Recogne, Cobru Approach, Road To Noville ]
+    - [ Cobru Factory, Foy, Flak Battery ]
+    - [ West Bend, Southern Edge, Dugout Barn ]
+    - [ N30 Highway, Bizory Foy Road, Eastern Ourthe ]
+    - [ Road To Bastogne, Bois Jacques, Forest Outskirts ]
+    orientation: vertical
+    allies: US
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/foy.png"
+
+  hill_400:
+    name: Hill 400
+    short_name: Hill 400
+    environments: [ day ]
+    objectives:
+    - [ Convoy Ambush, Federchecke Junction, Stuckchen Farm ]
+    - [ Roer River House, Bergstein Church, Kirchweg ]
+    - [ Flak Pits, Hill 400, Southern Approach ]
+    - [ Eselsweg Junction, Eastern Slope, Trainwreck ]
+    - [ Roer River Crossing, Zerkall, PaperMill ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/hill_400.png"
+
+  hurtgen_forest:
+    name: Hurtgen Forest
+    short_name: Hurtgen
+    environments: [ day, night ]
+    objectives:
+    - [ The Masbauch Approach, Reserve Station, Lumber Yard ]
+    - [ Wehebach Overlook, Kall Trail, The Ruin ]
+    - [ North Pass, The Scar, The Siegfried Line ]
+    - [ Hill 15, Jacob's Barn, Salient 42 ]
+    - [ Grosshau Approach, Hürtgen Approach, Logging Camp ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/hurtgen_forest.png"
+
+  kharkov:
+    name: Kharkov
+    short_name: Kharkov
+    environments: [ day, night ]
+    objectives:
+    - [ Marsh Town, Soviet Vantage Point, German Fuel Dump ]
+    - [ Bitter Spring, Lumber Works, Windmill Hillside ]
+    - [ Water Mill, St Mary, Distillery ]
+    - [ River Crossing, Belgorod Outskirts, Lumberyard ]
+    - [ Wehrmacht Overlook, Hay Storage, Overpass ]
+    orientation: vertical
+    allies: SOV
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/kharkov.png"
+
+  kursk:
+    name: Kursk
+    short_name: Kursk
+    environments: [ day, night ]
+    objectives:
+    - [ Artillery Position, Grushki, Grushki Flank ]
+    - [ Panzer's End, Defence In Depth, Listening Post ]
+    - [ The Windmills, Yamki, Oleg's House ]
+    - [ Rudno, Destroyed Battery, The Muddy Churn ]
+    - [ Road To Kursk, Ammo Dump, Eastern Position ]
+    orientation: vertical
+    allies: SOV
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/kursk.png"
+
+  mortain:
+    name: Mortain
+    short_name: Mortain
+    environments: [ day, overcast, dawn ]
+    objectives:
+    - [ Hotel De La Poste, Forward Battery, Southern Approach ]
+    - [ Mortain Outskirts, Forward Medical Aid Station, Mortain Approach ]
+    - [ Hill 314, Petit Chappelle Saint Michel, U.S. Southern Roadblock ]
+    - [ Destroyed German Convoy, German Recon Camp, Le Hermitage Farm ]
+    - [ Abandoned German Checkpoint, German Defensive Camp, Farm Of Bonovisin ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/mortain.png"
+
+  omaha_beach:
+    name: Omaha Beach
+    short_name: Omaha Beach
+    environments: [ day, dusk ]
+    objectives:
+    - [ Beaumont Road, Crossroads, Les Isles ]
+    - [ Rear Battery, Church Road, The Orchards ]
+    - [ West Vierville, Vierville Sur Mer, Artillery Battery ]
+    - [ WN73, WN71, WN70 ]
+    - [ Dog Green, The Draw, Dog White ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/omaha_beach.png"
+
+  purple_heart_lane:
+    name: Purple Heart Lane
+    short_name: PHL
+    environments: [ overcast, night ]
+    objectives:
+    - [ Bloody Bend, Dead Man's Corner, Forward Battery ]
+    - [ Jourdan Canal, Douve Bridge, Douve River Battery ]
+    - [ Groult Pillbox, Carentan Causeway, Flak Position ]
+    - [ Madeleine Farm, Madeleine Bridge, Aid Station ]
+    - [ Ingouf Crossroads, Road To Carentan, Cabbage Patch ]
+    orientation: vertical
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/purple_heart_lane.png"
+
+  remagen:
+    name: Remagen
+    short_name: Remagen
+    environments: [ day, night ]
+    objectives:
+    - [ Alte Liebe Barsch, Bewaldet Kreuzung, Dan Radart 512 ]
+    - [ Erpel, Erpeler Ley, Kasbach Outlook ]
+    - [ St Severin Chapel, Ludendorff Bridge, Bauernhof Am Rhein ]
+    - [ Remagen, Mobelfabrik, SchlieffenAusweg ]
+    - [ Waldburg, Muhlenweg, Hagelkreuz ]
+    orientation: vertical
+    allies: US
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/remagen.png"
+
+  stalingrad:
+    name: Stalingrad
+    short_name: Stalingrad
+    environments: [ day, night ]
+    objectives:
+    - [ Mamayev Approach, Nail Factory, City Overlook ]
+    - [ Dolgiy Ravine, Yellow House, Komsomol HQ ]
+    - [ Railway Crossing, Carriage Depot, Train Station ]
+    - [ House Of The Workers, Pavlov's House, The Brewery ]
+    - [ L Shaped House, Grudinin's Mill, Volga Banks ]
+    orientation: horizontal
+    allies: SOV
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/stalingrad.png"
+
+  ste_marie_du_mont:
+    name: Ste. Marie Du Mont
+    short_name: SMDM
+    environments: [ day, night ]
+    objectives:
+    - [ Winters Landing, Le Grand Chemin, The Barn ]
+    - [ Brecourt Battery, Cattlesheds, Rue De La Gare ]
+    - [ The Dugout, AA Network, Pierre's Farm ]
+    - [ Hugo's Farm, The Hamlet, Ste Marie Du Mont ]
+    - [ The Corner, Hill 6, The Fields ]
+    orientation: vertical
+    allies: US
+    axis: GER
+    flip_sides: false
+    tacmap: "assets/tacmaps/ste_marie_du_mont.png"
+
+  ste_mere_eglise:
+    name: Ste. Mere Eglise
+    short_name: SME
+    environments: [ day, night ]
+    objectives:
+    - [ Flak Position, Vaulaville, La Prairie ]
+    - [ Route Du Haras, Western Approach, Rue De Gambosville ]
+    - [ Hospice, Ste Mere Eglise, Checkpoint ]
+    - [ Artillery Battery, The Cemetery, Maison Du Crique ]
+    - [ Les Vieux Vergers, Cross Roads, Russeau De Ferme ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/ste_mere_eglise.png"
+
+  utah_beach:
+    name: Utah Beach
+    short_name: Utah Beach
+    environments: [ day, night ]
+    objectives:
+    - [ Mammut Radar, Flooded House, Sainte Marie Approach ]
+    - [ Sunken Bridge, La Grande Crique, Drowned Fields ]
+    - [ WN4, The Chapel, WN7 ]
+    - [ AABattery, Hill 5, WN5 ]
+    - [ Tare Green, Red Roof House, Uncle Red ]
+    orientation: horizontal
+    allies: US
+    axis: GER
+    flip_sides: true
+    tacmap: "assets/tacmaps/utah_beach.png"
+
+#  ...:
+#    name: ...
+#    short_name: ...
+#    environments: [ day, night ]
+#    objectives:
+#    - [ ..., ..., ... ]
+#    - [ ..., ..., ... ]
+#    - [ ..., ..., ... ]
+#    - [ ..., ..., ... ]
+#    - [ ..., ..., ... ]
+#    orientation: horizontal
+#    allies: US
+#    axis: GER
+#    flip_sides: false
+#    tacmap: "assets/tacmaps/....png"
