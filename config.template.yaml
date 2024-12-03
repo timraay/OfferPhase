@@ -1,15 +1,20 @@
 #######################################################################
 #    Make sure you do NOT edit the `config.template.yaml` file!       #
 #  Copy it, rename the copy to `config.yaml`, and edit that instead.  #
+#                                                                     #
+#      For fresh installs, press Ctrl+F and search for "TODO" to      #
+#         find all empty keys that still need to be configured        #
 #######################################################################
 
 bot:
   # Your bot token. Keep this a secret.
+  # TODO
   token: 
 
   # A list of emojis that the bot uses. These can all be found in the /assets/emojis/ folder.
   # Upload these to the Discord developer portal, then paste the associated IDs here.
   emojis:
+    # TODO
     obj_vert_222: 
     obj_vert_221: 
     obj_vert_212: 
@@ -52,38 +57,43 @@ factions:
     name: US
     emojis:
       # The default emoji for this faction
-      default: <faction_us:1310943564859179008>
+      # TODO
+      default: 
       # A highlighted variant of the default emoji
-      selected: <faction_us_selected:1310943572899663872>
+      # TODO
+      selected: 
     images:
       # The icon for this faction. Must be 256x256 pixels.
       default: "assets/factions/US.png"
       # A highlighted variant of the default icon. Must be 256x256 pixels.
       selected: "assets/factions/US_selected.png"
 
-  SOV:
-    name: SOV
-    emojis:
-      default: <faction_sov:1310943547456880691>
-      selected: <faction_sov_selected:1310943557091201134>
-    images:
-      default: "assets/factions/SOV.png"
-      selected: "assets/factions/SOV_selected.png"
-
   GER:
     name: GER
     emojis:
-      default: <faction_ger:1310943529169584139>
-      selected: <faction_ger_selected:1310943536752889897>
+      # TODO
+      default: 
+      selected: 
     images:
       default: "assets/factions/GER.png"
       selected: "assets/factions/GER_selected.png"
 
+  SOV:
+    name: SOV
+    emojis:
+      # TODO
+      default: 
+      selected: 
+    images:
+      default: "assets/factions/SOV.png"
+      selected: "assets/factions/SOV_selected.png"
+
   CW:
     name: CW
     emojis:
-      default: <faction_cw:1310943514452037682>
-      selected: <faction_cw_selected:1310943522370621483>
+      # TODO
+      default: 
+      selected: 
     images:
       default: "assets/factions/CW.png"
       selected: "assets/factions/CW_selected.png"
