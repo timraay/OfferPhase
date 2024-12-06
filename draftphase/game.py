@@ -1,16 +1,19 @@
+from cachetools import cached, TTLCache
 from datetime import datetime
+import re
 from typing import Optional, Self
 from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
 
-from draftphase.config import get_config
 from draftphase.db import get_cursor
 from draftphase.discord_utils import GameStateError
-from draftphase.maps import ENVIRONMENTS, MAPS, Environment, LayoutType
+from draftphase.maps import ENVIRONMENTS, MAPS, LayoutType
 
 MAX_OFFERS = 10
 STREAM_DELAY = 15
+
+RE_SCORES = re.compile(r"(\d+)\s*[-:|/\\]\s*(\d+)")
 
 FLAGS = dict(
     UK=("EN", "🇬🇧"),
@@ -24,6 +27,7 @@ FLAGS = dict(
     JP=("JP", "🇯🇵"),
     AU=("EN", "🇦🇺"),
 )
+DEFAULT_FLAG = ['??', '❓']
 
 class Offer(BaseModel):
     id: int
@@ -107,68 +111,150 @@ class Offer(BaseModel):
     def get_environment(self):
         return ENVIRONMENTS[self.environment]
 
-class Streamer(BaseModel):
-    id: int
-    game_id: int
-    lang: str
+class Caster(BaseModel):
+    user_id: int
     name: str
-    url: str
+    channel_url: str
 
     @classmethod
-    def create(cls, game: 'Game', lang: str, name: str, url: str):
+    def create(cls, user_id: int, name: str, channel_url: str):
+        if not channel_url.startswith("https://"):
+            raise ValueError("Channel URL must start with \"https://\"")
         with get_cursor() as cur:
             cur.execute(
-                "INSERT INTO streamers(game_id, lang, name, url) VALUES (?,?,?,?) RETURNING *",
-                (game.channel_id, lang, name, url)
+                "INSERT INTO casters(user_id, name, channel_url) VALUES (?,?,?) RETURNING *",
+                (user_id, name, channel_url)
+            )
+            data = cur.fetchone()
+
+            self = cls(
+                user_id=data[0],
+                name=data[1],
+                channel_url=data[2],
+            )
+            return self
+    
+    @classmethod
+    def load(cls, user_id: int) -> Self:
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM casters WHERE user_id = ?", (user_id,))
+            data = cur.fetchone()
+            if not data:
+                raise ValueError("No caster exists with ID %s" % user_id)
+
+            caster = cls(
+                user_id=data[0],
+                name=data[1],
+                channel_url=data[2],
+            )
+            return caster
+
+    @classmethod
+    def load_all(cls) -> list[Self]:
+        casters = []
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM casters")
+            data = cur.fetchall()
+            caster = cls(
+                user_id=data[0],
+                name=data[1],
+                channel_url=data[2],
+            )
+            casters.append(caster)
+        return casters
+
+    @classmethod
+    def upsert(cls, user_id: int, name: str, channel_url: str) -> tuple[Self, bool]:
+        try:
+            caster = cls.load(user_id)
+        except ValueError:
+            return cls.create(user_id, name, channel_url), True
+        else:
+            caster.name = name
+            caster.channel_url = channel_url
+            caster.save()
+            return caster, False
+
+    def save(self):
+        data = self.model_dump()
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE casters SET
+                    name=:name,
+                    channel_url=:channel_url
+                WHERE user_id = :user_id
+                """,
+                data
+            )
+
+class Stream(BaseModel):
+    id: int
+    game_id: int
+    caster: Caster
+    lang: str
+
+    @classmethod
+    def create(cls, game: 'Game', caster: Caster, lang: str):
+        with get_cursor() as cur:
+            cur.execute(
+                "INSERT INTO streams(game_id, caster_id, lang) VALUES (?,?,?) RETURNING *",
+                (game.channel_id, caster.user_id, lang)
             )
             data = cur.fetchone()
 
             self = cls(
                 id=data[0],
                 game_id=data[1],
-                lang=data[2],
-                name=data[3],
-                url=data[4],
+                caster=caster,
+                lang=data[3],
             )
-            game.streamers.append(self)
+            game.streams.append(self)
             return self
 
     @classmethod
     def load_for_game(cls, game_id: int) -> list[Self]:
-        streamers = []
+        streams = []
         with get_cursor() as cur:
-            cur.execute("SELECT * FROM streamers WHERE game_id = ? ORDER BY id", (game_id,))
+            cur.execute("SELECT * FROM streams INNER JOIN casters ON streams.caster_id = casters.user_id WHERE game_id = ? ORDER BY id", (game_id,))
             all_data = cur.fetchall()
             for data in all_data:
-                streamers.append(cls(
+                streams.append(cls(
                     id=data[0],
                     game_id=data[1],
-                    lang=data[2],
-                    name=data[3],
-                    url=data[4],
+                    caster=Caster(
+                        user_id=data[4],
+                        name=data[5],
+                        channel_url=data[6],
+                    ),
+                    lang=data[3],
                 ))
-        return streamers
+        return streams
     
     def save(self):
-        data = self.model_dump()
+        data = self.model_dump(exclude={"caster"})
+        data["caster_id"] = self.caster.user_id
         with get_cursor() as cur:
             cur.execute(
                 """
-                UPDATE streamers SET
+                UPDATE streams SET
+                    caster_id=:caster_id,
                     lang=:lang,
-                    name=:name,
-                    url=:url,
                 WHERE id = :id
                 """,
                 data
             )
+
+    def delete(self):
+        with get_cursor() as cur:
+            cur.execute("DELETE FROM streams WHERE id = ?", (self.id,))
 
     @property
     def flag(self):
         lang = self.lang.upper()
         if len(lang) != 2:
             return '❓'
-        flags = FLAGS.get(lang, ['??', '❓'])
+        flags = FLAGS.get(lang, DEFAULT_FLAG)
         return flags[1]
     
     @property
@@ -176,14 +262,14 @@ class Streamer(BaseModel):
         lang = self.lang.upper()
         if len(lang) != 2:
             return '??'
-        flags = FLAGS.get(lang, ['??', '❓'])
+        flags = FLAGS.get(lang, DEFAULT_FLAG)
         return flags[0]
         
     def to_text(self, small=False):
         if small:
-            return f"[{self.flag}{self.name}]({self.url})"
+            return f"[{self.flag}{self.caster.name}]({self.caster.channel_url})"
         else:
-            return f"({self.displaylang}) {self.flag} {self.name} - <{self.url}>"
+            return f"({self.displaylang}) {self.flag} {self.caster.name} - <{self.caster.channel_url}>"
 
 class Game(BaseModel):
     message_id: int | None
@@ -193,11 +279,12 @@ class Game(BaseModel):
     team2_id: int
     subtitle: str | None = None
     start_time: datetime | None = None
+    score: str | None = None
     max_num_offers: int = MAX_OFFERS
     flip_sides: Optional[bool] = None
     stream_delay: int = STREAM_DELAY
     offers: list[Offer] = Field(default_factory=list)
-    streamers: list[Streamer] = Field(default_factory=list)
+    streams: list[Stream] = Field(default_factory=list)
 
     @classmethod
     def create(
@@ -225,9 +312,10 @@ class Game(BaseModel):
                 team2_id=data[4],
                 subtitle=data[5],
                 start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
-                max_num_offers=data[7],
-                flip_sides=data[8],
-                stream_delay=data[9],
+                score=data[7],
+                max_num_offers=data[8],
+                flip_sides=data[9],
+                stream_delay=data[10],
             )
     
     @classmethod
@@ -240,7 +328,7 @@ class Game(BaseModel):
             
             channel_id = int(data[1])
             offers = Offer.load_for_game(channel_id)
-            streamers = Streamer.load_for_game(channel_id)
+            streams = Stream.load_for_game(channel_id)
             return cls(
                 message_id=data[0],
                 channel_id=channel_id,
@@ -249,11 +337,12 @@ class Game(BaseModel):
                 team2_id=data[4],
                 subtitle=data[5],
                 start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
-                max_num_offers=data[7],
-                flip_sides=data[8],
-                stream_delay=data[9],
+                score=data[7],
+                max_num_offers=data[8],
+                flip_sides=data[9],
+                stream_delay=data[10],
                 offers=offers,
-                streamers=streamers,
+                streams=streams,
             )
 
     def save(self):
@@ -270,12 +359,24 @@ class Game(BaseModel):
                     subtitle=:subtitle,
                     start_time=:start_time,
                     max_num_offers=:max_num_offers,
+                    score=:score,
                     flip_sides=:flip_sides,
                     stream_delay=:stream_delay
                 WHERE channel_id = :channel_id
                 """,
                 data
             )
+
+    def get_scores(self) -> tuple[int, int] | None:
+        if not self.score:
+            return None
+        
+        match = RE_SCORES.search(self.score)
+        if not match:
+            return None
+        
+        groups = match.groups()
+        return (int(groups[0]), int(groups[1]))
 
     def team_idx_to_id(self, team_idx: int):
         if team_idx == 1:
@@ -373,3 +474,21 @@ class Game(BaseModel):
 
         self.offers[-1].accepted = False
         self.offers[-1].save()
+
+    def add_stream(self, caster: Caster, lang: str):
+        return Stream.create(self, caster, lang)
+
+    def remove_stream(self, stream: Stream):
+        if stream.game_id != self.channel_id:
+            raise ValueError("Stream is not part of this game")
+        
+        stream.delete()
+        self.streams.remove(stream)
+
+@cached(TTLCache(maxsize=100, ttl=20))
+def cached_get_streams_for_game(game_id: int):
+    return Stream.load_for_game(game_id)
+
+@cached(TTLCache(maxsize=100, ttl=20))
+def cached_get_casters():
+    return Caster.load_all()

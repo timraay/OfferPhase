@@ -4,3 +4,4 @@ cachetools
 pydantic==2.*
 typing_extensions>=4.0.0
 pyyaml
+python-dateutil

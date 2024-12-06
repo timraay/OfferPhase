@@ -64,11 +64,11 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
             inline=True,
         )
     
-    if game.streamers:
+    if game.streams:
         embed.add_field(
             name=f"Streamers (+{game.stream_delay} mins delay)" if game.stream_delay else "Streamers",
             value="\n".join(
-                [streamer.to_text() for streamer in game.streamers]
+                [streamer.to_text() for streamer in game.streams]
             ),
             inline=True,
         )

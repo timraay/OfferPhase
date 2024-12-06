@@ -27,6 +27,7 @@ def create_tables():
             team2_id INTEGER NOT NULL,
             subtitle TEXT(100),
             start_time INTEGER,
+            score TEXT(32),
             max_num_offers INTEGER NOT NULL,
             flip_sides BOOL,
             stream_delay INTEGER
@@ -45,11 +46,18 @@ def create_tables():
         );
         """)
         cur.execute("""
-        CREATE TABLE IF NOT EXISTS streamers (
+        CREATE TABLE IF NOT EXISTS casters (
+            user_id INTEGER PRIMARY KEY,
+            name TEXT(32) NOT NULL,
+            channel_url TEXT(100) NOT NULL
+        )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS streams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id INTEGER NOT NULL REFERENCES games(channel_id) ON DELETE CASCADE,
+            caster_id INTEGER NOT NULL REFERENCES casters(user_id) ON DELETE CASCADE,
             lang TEXT(4) NOT NULL,
-            name TEXT(64) NOT NULL,
             url TEXT(100) NOT NULL
         )
         """)
