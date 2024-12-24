@@ -50,6 +50,43 @@ bot:
     obj_hor_001: 
     obj_hor_000: 
 
+
+teams:
+  # The name of the team
+  MyTeam:
+    # The role ID for the team reps of this team. Users with this role will have permission to
+    # draft maps for this team.
+    rep_role_id: 
+
+    # The role ID for public use. Largely cosmetic, mainly used for display purposes.
+    public_role_id: 
+
+    # The region of this team. Must match one of the regions defined further below.
+    region: 
+
+    # An emoji of this team's logo.
+    emoji: 
+
+  #...:
+  #  rep_role_id: ...
+  #  public_role_id: ...
+  #  region: ...
+  #  emoji: ...
+
+
+middlegrounds:
+  # A list of all regions. For reach region, name all regions for which a middleground exists.
+  # To always have a middleground, type use "*". For no middlegrounds, leave empty.
+  NA East: [ NA East, CIS, CN, OCE, SA ]
+  NA West: [ NA West, CIS, CN, OCE, SA ]
+  EU West: [ EU West, CIS, CN, OCE, SA ]
+  CIS: "*"
+  CN: "*"
+  OCE: "*"
+  SA: "*"
+  Mixed: [ Mixed, CIS, CN, OCE, SA ]
+
+
 # A list of factions that exist in the game. These can be referenced by maps.
 factions:
   US:
@@ -98,14 +135,14 @@ factions:
       default: "assets/factions/CW.png"
       selected: "assets/factions/CW_selected.png"
 
-#  ...:
-#    name: ...
-#    emojis:
-#      default: ...
-#      selected: ...
-#    images:
-#      default: "assets/factions/....png"
-#      selected: "assets/factions/..._selected.png"
+  #...:
+  #  name: ...
+  #  emojis:
+  #    default: ...
+  #    selected: ...
+  #  images:
+  #    default: "assets/factions/....png"
+  #    selected: "assets/factions/..._selected.png"
 
 
 # A list of generalized environments that exist in the game. These can be referenced by maps, which
@@ -139,10 +176,10 @@ environments:
     emoji: 🌥️
     image: "assets/environments/dusk.png"
 
-#  ...:
-#    name: ...
-#    emoji: ☀️
-#    image: "assets/environments/....png"
+  #...:
+  #  name: ...
+  #  emoji: ☀️
+  #  image: "assets/environments/....png"
 
 
 # A list of all maps available in the draft. Maps can be added at any time, but be mindful that
@@ -445,18 +482,18 @@ maps:
     flip_sides: true
     tacmap: "assets/tacmaps/utah_beach.png"
 
-#  ...:
-#    name: ...
-#    short_name: ...
-#    environments: [ day, night ]
-#    objectives:
-#    - [ ..., ..., ... ]
-#    - [ ..., ..., ... ]
-#    - [ ..., ..., ... ]
-#    - [ ..., ..., ... ]
-#    - [ ..., ..., ... ]
-#    orientation: horizontal
-#    allies: US
-#    axis: GER
-#    flip_sides: false
-#    tacmap: "assets/tacmaps/....png"
+  #...:
+  #  name: ...
+  #  short_name: ...
+  #  environments: [ day, night ]
+  #  objectives:
+  #  - [ ..., ..., ... ]
+  #  - [ ..., ..., ... ]
+  #  - [ ..., ..., ... ]
+  #  - [ ..., ..., ... ]
+  #  - [ ..., ..., ... ]
+  #  orientation: horizontal
+  #  allies: US
+  #  axis: GER
+  #  flip_sides: false
+  #  tacmap: "assets/tacmaps/....png"

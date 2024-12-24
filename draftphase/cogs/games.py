@@ -9,11 +9,20 @@ from draftphase.bot import Bot
 from draftphase.discord_utils import CustomException, get_success_embed
 from draftphase.embeds import create_game, send_or_edit_game_message
 from draftphase.game import FLAGS, Caster, Game, cached_get_casters, cached_get_streams_for_game
+from draftphase.maps import TEAMS
+from draftphase.views.open_controls import ControlsManager
 
 LANG_CHOICES = [
     app_commands.Choice(name=f"{langname} ({lang} {flag})", value=lang)
     for lang, (langname, flag) in FLAGS.items()
 ]
+
+def assert_team_role_validity(role: Role):
+    if role.id not in TEAMS:
+        raise CustomException(
+            "Invalid team!",
+            "No team exists in the `config.yaml` file with this Rep role ID."
+        )
 
 async def autocomplete_caster(interaction: Interaction, value: str):
     casters = cached_get_casters()
@@ -56,7 +65,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
     )
 
     reset_group = app_commands.Group(
-        name="set",
+        name="reset",
         description="Reset a property of a match",
     )
 
@@ -95,6 +104,9 @@ class GamesCog(commands.GroupCog, group_name="match"):
                     "- Embed Links"
                 )
             )
+        
+        assert_team_role_validity(team1)
+        assert_team_role_validity(team2)
 
         await create_game(
             interaction.client,
@@ -115,10 +127,34 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await interaction.response.defer(ephemeral=True)
         await send_or_edit_game_message(interaction.client, game)
         await interaction.followup.send(embed=get_success_embed("Resent message!"))
+    
+    @app_commands.command(name="undo-action")
+    async def undo_draft_action(self, interaction: Interaction, amount: int = 1):
+        if amount <= 0:
+            raise CustomException("Invalid argument!", "Amount must be greater than 0")
 
+        assert interaction.channel_id is not None
+        game = Game.load(interaction.channel_id)
+
+        await interaction.response.defer(ephemeral=True)
+
+        successes = 0
+        for _ in range(amount):
+            if not game.undo():
+                break
+            successes += 1
+
+        if successes > 0:
+            await ControlsManager().update_for_game(game)
+        
+        await interaction.followup.send(embed=get_success_embed(
+            f"Undone {successes} actions!"
+        ))
 
     @set_group.command(name="team1")
     async def set_team1(self, interaction: Interaction, role: Role):
+        assert_team_role_validity(role)
+
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
         game.team1_id = role.id
@@ -136,6 +172,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         
     @set_group.command(name="team2")
     async def set_team2(self, interaction: Interaction, role: Role):
+        assert_team_role_validity(role)
+
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
         game.team2_id = role.id

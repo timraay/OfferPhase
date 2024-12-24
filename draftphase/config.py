@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Self, TypeAlias
+from typing import Any, Self, Sequence, TypeAlias
 from pydantic import BaseModel, field_validator, model_validator
 from PIL import Image
 import yaml
@@ -18,6 +18,12 @@ def assert_im_size(v: Path, expected_size: tuple[int, int]):
 class Bot(BaseModel, frozen=True):
     token: str
     emojis: dict[str, str]
+
+class Team(BaseModel, frozen=True):
+    rep_role_id: int
+    public_role_id: int
+    region: str
+    emoji: str
 
 class Environment(BaseModel, frozen=True):
     name: str
@@ -72,6 +78,8 @@ class Map(BaseModel, frozen=True):
 
 class Config(BaseModel):
     bot: Bot
+    teams: dict[str, Team]
+    middlegrounds: dict[str, list[str]]
     environments: dict[str, Environment]
     factions: dict[str, Faction]
     maps: dict[str, Map]
@@ -96,6 +104,32 @@ class Config(BaseModel):
             if map.axis not in self.factions:
                 raise ValueError("Map %s has unknown axis faction %s, expected one of %s" % (
                     key, map.axis, list(self.environments.keys())
+                ))
+        return self
+
+    @field_validator("middlegrounds", mode="before")
+    @classmethod
+    def replace_middleground_wildcards(cls, v: Any):
+        if not isinstance(v, dict):
+            return
+        
+        for region, middlegrounds in v.items():
+            if middlegrounds == "*":
+                v[region] = list(v.keys())
+            elif isinstance(middlegrounds, Sequence):
+                for m in middlegrounds:
+                    if m not in v:
+                        raise ValueError("Unknown middleground %s for region %s. Must be one of %s" % (
+                            m, region, list(v.keys())
+                        ))
+        return v
+
+    @model_validator(mode="after")
+    def check_team_regions(self) -> Self:
+        for team_name, team in self.teams.items():
+            if team.region not in self.middlegrounds:
+                raise ValueError("Team %s has undefined region %s, expected one of %s" % (
+                    team_name, team.region, list(self.middlegrounds.keys())
                 ))
         return self
 

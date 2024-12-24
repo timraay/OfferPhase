@@ -43,6 +43,8 @@ class MapDetails(config.Map, frozen=True):
             ]
         return v
 
+class Team(config.Team, frozen=True):
+    name: str
 
 ENVIRONMENTS = {
     k: Environment(key=k, **v.model_dump())
@@ -57,6 +59,11 @@ FACTIONS = {
 MAPS = {
     k: MapDetails(key=k, **v.model_dump())
     for k, v in get_config().maps.items()
+}
+
+TEAMS = {
+    v.rep_role_id: Team(name=k, **v.model_dump())
+    for k, v in get_config().teams.items()
 }
 
 
@@ -86,3 +93,11 @@ def get_layout_from_filtered_idx(midpoint_idx: int, layout_idx: int):
     return next(itertools.islice(filtered_layouts, layout_idx, None))
 
 LAYOUT_COMBINATIONS: tuple[LayoutType, ...] = tuple(get_all_layout_combinations())
+
+def has_middleground(team1_id: int, team2_id: int):
+    team1 = TEAMS.get(team1_id)
+    team2 = TEAMS.get(team2_id)
+    if not team1 or not team2:
+        return True
+    
+    return team2.region in get_config().middlegrounds.get(team1.region, [])

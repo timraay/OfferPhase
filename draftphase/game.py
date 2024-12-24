@@ -1,16 +1,17 @@
 from cachetools import cached, TTLCache
-from datetime import datetime
+from datetime import datetime, timezone
+from random import random
 import re
-from typing import Optional, Self
+from typing import Literal, Self
 from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
 
 from draftphase.db import get_cursor
 from draftphase.discord_utils import GameStateError
-from draftphase.maps import ENVIRONMENTS, MAPS, LayoutType
+from draftphase.maps import ENVIRONMENTS, MAPS, TEAMS, LayoutType, Team, has_middleground
 
-MAX_OFFERS = 10
+MAX_OFFERS = 12
 STREAM_DELAY = 15
 
 RE_SCORES = re.compile(r"(\d+)\s*[-:|/\\]\s*(\d+)")
@@ -33,7 +34,7 @@ class Offer(BaseModel):
     id: int
     game_id: int
     offer_no: int
-    player_id: int
+    team_id: int
     map: str
     environment: str
     layout: LayoutType
@@ -42,15 +43,15 @@ class Offer(BaseModel):
     @classmethod
     def create(cls, game: 'Game', map: str, environment: str, layout: LayoutType):
         offer_no = len(game.offers) + 1
-        player_id = game.team_idx_to_id(game.turn())
+        team_id = game.team_idx_to_id(game.turn())
 
         if offer_no > game.max_num_offers:
             raise GameStateError("Offer exceeds max offer limit")
 
         with get_cursor() as cur:
             cur.execute(
-                "INSERT INTO offers(game_id, offer_no, player_id, map, environment, layout) VALUES (?,?,?,?,?,?) RETURNING *",
-                (game.channel_id, offer_no, player_id, map, environment, "".join([str(i) for i in layout]))
+                "INSERT INTO offers(game_id, offer_no, team_id, map, environment, layout) VALUES (?,?,?,?,?,?) RETURNING *",
+                (game.channel_id, offer_no, team_id, map, environment, "".join([str(i) for i in layout]))
             )
             data = cur.fetchone()
 
@@ -58,7 +59,7 @@ class Offer(BaseModel):
                 id=data[0],
                 game_id=data[1],
                 offer_no=data[2],
-                player_id=data[3],
+                team_id=data[3],
                 map=data[4],
                 environment=data[5],
                 layout=tuple(data[6]),
@@ -78,7 +79,7 @@ class Offer(BaseModel):
                     id=data[0],
                     game_id=data[1],
                     offer_no=data[2],
-                    player_id=data[3],
+                    team_id=data[3],
                     map=data[4],
                     environment=data[5],
                     layout=tuple(data[6]),
@@ -95,7 +96,7 @@ class Offer(BaseModel):
                 """
                 UPDATE offers SET
                     offer_no=:offer_no,
-                    player_id=:player_id,
+                    team_id=:team_id,
                     map=:map,
                     environment=:environment,
                     layout=:layout,
@@ -105,6 +106,10 @@ class Offer(BaseModel):
                 data
             )
     
+    def delete(self):
+        with get_cursor() as cur:
+            cur.execute("DELETE FROM offers WHERE id = ?", (self.id,))
+
     def get_map_details(self):
         return MAPS[self.map]
     
@@ -271,6 +276,99 @@ class Stream(BaseModel):
         else:
             return f"({self.displaylang}) {self.flag} {self.caster.name} - <{self.caster.channel_url}>"
 
+class Prediction(BaseModel):
+    id: int
+    game_id: int
+    user_id: int
+    team1_score: int
+    
+    @classmethod
+    def create(cls, game_id: int, user_id: int, team1_score: int):
+        with get_cursor() as cur:
+            cur.execute(
+                "INSERT INTO predictions(game_id, user_id, team1_score) VALUES (?,?,?) RETURNING *",
+                (game_id, user_id, team1_score)
+            )
+            data = cur.fetchone()
+
+            self = cls(
+                id=data[0],
+                game_id=data[1],
+                user_id=data[2],
+                team1_score=data[3],
+            )
+            return self
+
+    @classmethod
+    def load(cls, game_id: int, user_id: int) -> Self:
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM predictions WHERE game_id = ? AND user_id = ?", (game_id, user_id,))
+            data = cur.fetchone()
+            if not data:
+                raise ValueError("No prediction exists for user with ID %s of game with ID %s" % (user_id, game_id))
+
+            prediction = cls(
+                id=data[0],
+                game_id=data[1],
+                user_id=data[2],
+                team1_score=data[3],
+            )
+            return prediction
+
+    @classmethod
+    def load_for_game(cls, game_id: int) -> list[Self]:
+        predictions = []
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM predictions WHERE game_id = ?", (game_id,))
+            all_data = cur.fetchall()
+            for data in all_data:
+                predictions.append(cls(
+                    id=data[0],
+                    game_id=data[1],
+                    user_id=data[2],
+                    team1_score=data[3],
+                ))
+        return predictions
+    
+    def save(self):
+        data = self.model_dump()
+
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE predictions SET
+                    game_id=:game_id,
+                    user_id=:user_id,
+                    team1_score=:team1_score
+                WHERE id = :id
+                """,
+                data
+            )
+    
+    def delete(self):
+        with get_cursor() as cur:
+            cur.execute("DELETE FROM predictions WHERE id = ?", (self.id,))
+
+    @classmethod
+    def upsert(cls, game_id: int, user_id: int, team1_score: int) -> tuple[Self, bool]:
+        try:
+            self = cls.load(game_id, user_id)
+        except ValueError:
+            return cls.create(game_id, user_id, team1_score), True
+        else:
+            if self.team1_score != team1_score:
+                self.team1_score = team1_score
+                self.save()
+            return self, False
+
+    def get_scores(self) -> tuple[int, int]:
+        team1_score = min(max(self.team1_score, 0), 5)
+        team2_score = 5 - team1_score
+        return (team1_score, team2_score)
+
+    def winner_idx(self) -> Literal[1, 2]:
+        return 1 if self.team1_score >= 3 else 2
+
 class Game(BaseModel):
     message_id: int | None
     channel_id: int
@@ -281,7 +379,9 @@ class Game(BaseModel):
     start_time: datetime | None = None
     score: str | None = None
     max_num_offers: int = MAX_OFFERS
-    flip_sides: Optional[bool] = None
+    flip_coin: bool
+    flip_advantage: bool | None = None
+    flip_sides: bool | None = None
     stream_delay: int = STREAM_DELAY
     offers: list[Offer] = Field(default_factory=list)
     streams: list[Stream] = Field(default_factory=list)
@@ -297,10 +397,11 @@ class Game(BaseModel):
         max_num_offers: int = MAX_OFFERS,
         stream_delay: int = STREAM_DELAY,
     ):
+        flip_coin = random() > 0.5
         with get_cursor() as cur:
             cur.execute(
-                "INSERT INTO games(message_id, channel_id, guild_id, team1_id, team2_id, subtitle, max_num_offers, stream_delay) VALUES (?,?,?,?,?,?,?,?) RETURNING *",
-                (message_id, channel.id, channel.guild.id, team1_id, team2_id, subtitle, max_num_offers, stream_delay)
+                "INSERT INTO games(message_id, channel_id, guild_id, team1_id, team2_id, subtitle, max_num_offers, flip_coin, stream_delay) VALUES (?,?,?,?,?,?,?,?,?) RETURNING *",
+                (message_id, channel.id, channel.guild.id, team1_id, team2_id, subtitle, max_num_offers, flip_coin, stream_delay)
             )
             data = cur.fetchone()
 
@@ -314,8 +415,10 @@ class Game(BaseModel):
                 start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
                 score=data[7],
                 max_num_offers=data[8],
-                flip_sides=data[9],
-                stream_delay=data[10],
+                flip_coin=data[9],
+                flip_advantage=data[10],
+                flip_sides=data[11],
+                stream_delay=data[12],
             )
     
     @classmethod
@@ -339,8 +442,10 @@ class Game(BaseModel):
                 start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
                 score=data[7],
                 max_num_offers=data[8],
-                flip_sides=data[9],
-                stream_delay=data[10],
+                flip_coin=data[9],
+                flip_advantage=data[10],
+                flip_sides=data[11],
+                stream_delay=data[12],
                 offers=offers,
                 streams=streams,
             )
@@ -360,6 +465,8 @@ class Game(BaseModel):
                     start_time=:start_time,
                     max_num_offers=:max_num_offers,
                     score=:score,
+                    flip_coin=:flip_coin,
+                    flip_advantage=:flip_advantage,
                     flip_sides=:flip_sides,
                     stream_delay=:stream_delay
                 WHERE channel_id = :channel_id
@@ -378,25 +485,44 @@ class Game(BaseModel):
         groups = match.groups()
         return (int(groups[0]), int(groups[1]))
 
-    def team_idx_to_id(self, team_idx: int):
+    def get_predictions(self) -> list[Prediction]:
+        return Prediction.load_for_game(self.channel_id)
+
+    def team_idx_to_id(self, team_idx: Literal[1, 2]) -> int:
         if team_idx == 1:
             return self.team1_id
         else:
             return self.team2_id
     
-    def team_id_to_idx(self, team_id: int):
+    def team_id_to_idx(self, team_id: int) -> Literal[1, 2]:
         if team_id == self.team1_id:
             return 1
         elif team_id == self.team2_id:
             return 2
         else:
             raise ValueError("Invalid team ID")
-        
+    
+    def get_team(self, team_idx: Literal[1, 2]):
+        team_id = self.team_idx_to_id(team_idx)
+        return TEAMS.get(
+            team_id,
+            Team(
+                rep_role_id=team_id,
+                public_role_id=team_id,
+                region="Unknown",
+                emoji="❓",
+                name="Unknown Team",
+            )
+        )
+
     def turn(self, *, opponent: bool = False):
-        if (len(self.offers) % 2 == 0) != opponent:
-            return 1
-        else:
+        if self.is_choosing_advantage():
+            return 2 if self.flip_coin else 1
+        
+        if ((len(self.offers) + int(bool(self.flip_advantage) != self.has_middleground())) % 2 == 0) != opponent:
             return 2
+        else:
+            return 1
 
     def is_user_participating(self, member: Member):
         if member.guild_permissions.administrator:
@@ -416,18 +542,39 @@ class Game(BaseModel):
         team_id = self.team_idx_to_id(self.turn())
         return discord.utils.get(member.roles, id=team_id) is not None
 
-    def get_offers_for_team_idx(self, team_idx: int):
+    def get_offers_for_team_idx(self, team_idx: Literal[1, 2]):
         offset = (team_idx + 1) % 2
         return self.offers[offset::2]
 
-    def get_max_num_offers_for_team_idx(self, team_idx: int):
+    def get_max_num_offers_for_team_idx(self, team_idx: Literal[1, 2]):
         if (team_idx % 2 == 1):
             return (self.max_num_offers // 2) + (self.max_num_offers % 2)
         else:
             return (self.max_num_offers // 2)
 
+    def has_middleground(self):
+        return has_middleground(self.team1_id, self.team2_id)
+
+    def is_choosing_advantage(self):
+        return self.flip_advantage is None
+    
+    def can_accept_past_offers(self, team_idx: Literal[1, 2]):
+        if self.has_middleground():
+            return True
+        
+        if self.flip_advantage:
+            return team_idx == 2
+        else:
+            return team_idx == 1
+
     def is_offer_available(self) -> bool:
         return bool(self.offers and self.offers[-1].accepted is None)
+
+    def has_started(self) -> bool:
+        if not self.start_time:
+            return False
+        
+        return self.start_time <= datetime.now(tz=timezone.utc)
 
     def is_done(self) -> bool:
         return self.get_accepted_offer() is not None
@@ -466,7 +613,7 @@ class Game(BaseModel):
         offer.save()
         self.save()
 
-    def decline_offer(self):
+    def skip_latest_offer(self):
         if self.is_done():
             raise GameStateError("Game is already done")
         if not self.is_offer_available():
@@ -474,6 +621,28 @@ class Game(BaseModel):
 
         self.offers[-1].accepted = False
         self.offers[-1].save()
+
+    def remove_latest_offer(self):
+        if not self.offers:
+            raise Exception("Cannot remove offer because no offers have been made yet")
+        
+        offer = self.offers[-1]
+        offer.delete()
+        del self.offers[-1]
+
+    def take_advantage(self):
+        if not self.is_choosing_advantage():
+            raise GameStateError("Advantage has already been chosen")
+        
+        self.flip_advantage = self.turn() == 2
+        self.save()
+    
+    def give_advantage(self):
+        if not self.is_choosing_advantage():
+            raise GameStateError("Advantage has already been chosen")
+
+        self.flip_advantage = self.turn() == 1
+        self.save()
 
     def add_stream(self, caster: Caster, lang: str):
         return Stream.create(self, caster, lang)
@@ -484,6 +653,31 @@ class Game(BaseModel):
         
         stream.delete()
         self.streams.remove(stream)
+
+    def undo(self):
+        if self.is_choosing_advantage():
+            return False
+        
+        if not self.offers:
+            self.flip_advantage = None
+        
+        elif self.is_done():
+            offer = self.get_accepted_offer()
+            assert offer is not None
+            offer.accepted = None
+            offer.save()
+            self.flip_sides = None
+            self.save()
+        
+        elif self.is_offer_available():
+            self.remove_latest_offer()
+        
+        else:
+            offer = self.offers[-1]
+            offer.accepted = None
+            offer.save()
+        
+        return True
 
 @cached(TTLCache(maxsize=100, ttl=20))
 def cached_get_streams_for_game(game_id: int):

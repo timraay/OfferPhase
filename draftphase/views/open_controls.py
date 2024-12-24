@@ -1,15 +1,21 @@
 import asyncio
 import random
 from re import Match
-from typing import Literal
-from discord import ButtonStyle, Interaction, NotFound, SelectOption, ui, InteractionMessage, Member
+from typing import Literal, Sequence
+from discord import ButtonStyle, File, Interaction, NotFound, SelectOption, ui, InteractionMessage, Member
 from draftphase.bot import DISCORD_BOT
 from draftphase.discord_utils import CustomException, GameStateError, MessagePayload, View, handle_error_wrap
+from draftphase.embeds import get_single_offer_embed
 from draftphase.emojis import faction_to_emoji, layout_to_emoji
 from draftphase.game import Game
 from draftphase.maps import MAPS, get_all_layout_combinations, get_layout_from_filtered_idx
 from draftphase.utils import SingletonMeta
 
+def assert_is_users_turn(game: Game, member: Member):
+    if not game.is_users_turn(member):
+        raise CustomException(
+            "It is not your turn!"
+        )
 
 class ControlsManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
@@ -49,7 +55,7 @@ class ControlsManager(metaclass=SingletonMeta):
         return view
 
     async def update_for_game(self, game: Game):
-        controls = self.controls[game.channel_id]
+        controls = self.controls.get(game.channel_id, {})
 
         from draftphase.embeds import send_or_edit_game_message
         await send_or_edit_game_message(DISCORD_BOT, game)
@@ -69,14 +75,16 @@ class ControlsManager(metaclass=SingletonMeta):
     
     async def delete_for_game(self, game: Game):
         controls = self.controls.pop(game.channel_id, None)
-        if not controls:
-            return
 
-        await asyncio.gather(*[
-            control.message.delete()
-            for control in controls.values()
-            if control.message
-        ], return_exceptions=True)
+        from draftphase.embeds import send_or_edit_game_message
+        await send_or_edit_game_message(DISCORD_BOT, game)
+
+        if controls:
+            await asyncio.gather(*[
+                control.message.delete()
+                for control in controls.values()
+                if control.message
+            ], return_exceptions=True)
     
 class GetControlsButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+)"):
     def __init__(self, item: ui.Button, game_id: int):
@@ -133,6 +141,11 @@ class SelectOfferSelect(ui.DynamicItem[ui.Select], template=r"ctrl:(?P<game_id>\
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
+        if not game.can_accept_past_offers(game.turn()):
+            raise CustomException(
+                "Your opponent has Offer Advantage!",
+                "You cannot select any offers made previously."
+            )
 
         view = ControlsManager().safe_get_view(game, member)
         view.reset()
@@ -170,9 +183,8 @@ class AcceptOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
+        assert_is_users_turn(game, member)
 
-        if not game.is_users_turn(member):
-            raise GameStateError("It is not your turn")
         if not game.is_offer_available():
             raise GameStateError("The offer has already been rejected")
 
@@ -185,8 +197,8 @@ class AcceptOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
             offer = game.offers[self.offer_idx]
             flip_sides = (turn != self.faction_idx)
             game.accept_offer(offer, flip_sides=flip_sides)
-            await cm.update_for_game(game)
             await interaction.response.defer()
+            await cm.delete_for_game(game)
         else:
             await view.edit(interaction=interaction)
 
@@ -218,18 +230,19 @@ class DeclineOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
+        assert_is_users_turn(game, member)
 
-        if not game.is_users_turn(member):
-            raise GameStateError("It is not your turn")
         if not game.is_offer_available():
-            raise GameStateError("The offer has already been rejected")
+            raise GameStateError("The offer has already been skipped")
+        if len(game.offers) >= game.max_num_offers:
+            raise GameStateError("The final offer cannot be skipped")
 
         cm = ControlsManager()
         view = cm.safe_get_view(game, member)
         view.set_declined(self.offer_idx)
 
         if self.confirmed:
-            game.decline_offer()
+            game.skip_latest_offer()
             await cm.update_for_game(game)
             await interaction.response.defer()
         else:
@@ -313,6 +326,8 @@ class CreateOfferConfirmButton(
         assert isinstance(member, Member)
 
         game = Game.load(self.game_id)
+        assert_is_users_turn(game, member)
+
         cm = ControlsManager()
         view = cm.safe_get_view(game, member)
 
@@ -325,6 +340,66 @@ class CreateOfferConfirmButton(
             environment=environment.key,
             layout=layout,
         )
+        await cm.update_for_game(game)
+        await interaction.response.defer()
+
+class TakeAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+):takeadvantage"):
+    def __init__(self,
+        item: ui.Button,
+        game_id: int,
+    ) -> None:
+        self.game_id = int(game_id)
+
+        item.custom_id = f"ctrl:{game_id}:takeadvantage"
+        super().__init__(item)
+    
+    @classmethod
+    async def from_custom_id(cls, interaction: Interaction, item: ui.Select, match: Match[str]):
+        return cls(item, **match.groupdict()) # type: ignore
+    
+    @handle_error_wrap
+    async def callback(self, interaction: Interaction):
+        member = interaction.user
+        assert isinstance(member, Member)
+
+        game = Game.load(self.game_id)
+        assert_is_users_turn(game, member)
+
+        cm = ControlsManager()
+        view = cm.safe_get_view(game, member)
+
+        game.take_advantage()
+        view.reset()
+        await cm.update_for_game(game)
+        await interaction.response.defer()
+
+class GiveAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+):giveadvantage"):
+    def __init__(self,
+        item: ui.Button,
+        game_id: int,
+    ) -> None:
+        self.game_id = int(game_id)
+
+        item.custom_id = f"ctrl:{game_id}:giveadvantage"
+        super().__init__(item)
+    
+    @classmethod
+    async def from_custom_id(cls, interaction: Interaction, item: ui.Select, match: Match[str]):
+        return cls(item, **match.groupdict()) # type: ignore
+    
+    @handle_error_wrap
+    async def callback(self, interaction: Interaction):
+        member = interaction.user
+        assert isinstance(member, Member)
+
+        game = Game.load(self.game_id)
+        assert_is_users_turn(game, member)
+
+        cm = ControlsManager()
+        view = cm.safe_get_view(game, member)
+
+        game.give_advantage()
+        view.reset()
         await cm.update_for_game(game)
         await interaction.response.defer()
 
@@ -393,8 +468,10 @@ class ControlsView(View):
         self.accepted = False
         self.faction_idx = None
     
-    def _get_payload_offer_available(self) -> MessagePayload:
+    async def _get_payload_offer_available(self) -> tuple[MessagePayload, Sequence[File]]:
         offer_options = []
+        can_accept_past_offers = self.game.can_accept_past_offers(self.game.turn())
+        is_final_offer = len(self.game.offers) >= self.game.max_num_offers
         offers = self.game.get_offers_for_team_idx(self.game.turn(opponent=True))
         for offer in offers:
             map_details = offer.get_map_details()
@@ -413,6 +490,7 @@ class ControlsView(View):
                 placeholder="Offer",
                 options=offer_options,
                 row=1,
+                disabled=not can_accept_past_offers,
             ), self.game.channel_id)
         )
 
@@ -445,7 +523,7 @@ class ControlsView(View):
         self.add_item(
             DeclineOfferButton(ui.Button(
                 label="Skip",
-                disabled=disable_skip,
+                disabled=disable_skip or is_final_offer,
                 style=ButtonStyle.green if disable_skip else ButtonStyle.gray,
                 row=2,
             ), self.game.channel_id, self.offer_idx)
@@ -462,23 +540,41 @@ class ControlsView(View):
             content = f"Are you sure you want to play **{map_details.name} {'Allies' if self.faction_idx == 1 else 'Axis'}**?"
         elif self.accepted is False:
             self.add_item(DeclineOfferButton(confirm_button, self.game.channel_id, self.offer_idx, confirmed=True))
-            content = f"Are you sure you want to skip this offer? You can always accept it at a later turn."
+            if can_accept_past_offers:
+                content = f"Are you sure you want to skip this offer?\nYou can still accept it during a later turn."
+            else:
+                content = f"Are you sure you want to skip this offer?\nSince your opponent has **Offer Advantage**, you will not be able to accept it during a later turn."
         else:
             confirm_button.disabled = True
             self.add_item(confirm_button)
             content = (
-                "**Choose whether you accept any of the available offers.**"
+                (
+                    "**Choose whether you accept any of the available offers.**"
+                    if can_accept_past_offers else
+                    "**Choose whether you accept the available offer.**"
+                ) +
                 "\nIf you **accept** an offer, you get to choose which side to play as."
                 "\nIf you **skip**, you have to make an offer in return."
             )
 
-        return {
-            "content": content,
-            "embeds": [],
-            "view": self,
-        }
+        embed, file = await get_single_offer_embed(
+            map_details=map_details,
+            environment=selected_offer.get_environment(),
+            midpoint_idx=selected_offer.layout[1],
+            layout=selected_offer.layout,
+            selected_team_id=1 if disable_accept_allies else 2 if disable_accept_axis else None
+        )
 
-    def _get_payload_draft_offer(self) -> MessagePayload:
+        return (
+            {
+                "content": content,
+                "embeds": [embed],
+                "view": self,
+            },
+            [file]
+        )
+
+    async def _get_payload_draft_offer(self) -> tuple[MessagePayload, Sequence[File]]:
         offers = self.game.get_offers_for_team_idx(self.game.turn())
         used_maps = {offer.map for offer in offers}
         
@@ -493,7 +589,7 @@ class ControlsView(View):
                             emoji="🗺️",
                         )
                         for i, m in enumerate(MAPS.values())
-                        if m not in used_maps
+                        if m.key not in used_maps
                     ],
                 ),
                 self.game.channel_id
@@ -569,28 +665,73 @@ class ControlsView(View):
             )
         )
 
+        embed, file = await get_single_offer_embed(
+            map_details=self.map,
+            environment=self.environment,
+            midpoint_idx=self.midpoint_idx if self.midpoint else None,
+            layout=self.layout,
+        )
+
+        return (
+            {
+                "content": "Make an offer.",
+                "embeds": [embed],
+                "view": self,
+            },
+            [file]
+        )
+
+    def _get_payload_choose_advantage(self) -> MessagePayload:
+        if self.game.has_middleground():
+            self.add_item(TakeAdvantageButton(ui.Button(
+                style=ButtonStyle.blurple,
+                label="Create first offer",
+            ), self.game.channel_id))
+            self.add_item(GiveAdvantageButton(ui.Button(
+                style=ButtonStyle.blurple,
+                label="Let opponent offer first",
+            ), self.game.channel_id))
+        else:
+            self.add_item(TakeAdvantageButton(ui.Button(
+                style=ButtonStyle.blurple,
+                label="Take Offer Advantage",
+            ), self.game.channel_id))
+            self.add_item(GiveAdvantageButton(ui.Button(
+                style=ButtonStyle.blurple,
+                label="Take Server Advantage",
+            ), self.game.channel_id))
+        
         return {
-            "content": "Make an offer.",
-            "embeds": [], # TODO: Add embed
-            "view": self,
+            "content": "Select which of the two options you want to claim for your team.\nThe remaining option is handed to your opponent.",
+            "embeds": [],
+            "view": self
         }
 
-    def get_payload(self) -> MessagePayload:
+    async def get_payload(self) -> tuple[MessagePayload, Sequence[File]]:
         self.clear_items()
 
+        if self.game.is_done():
+            return (
+                { "content": "*A map has been selected. You can dismiss this message.*" },
+                []
+            )
+
         if not self.game.is_users_turn(self.member):
-            return {
-                "content": "*Waiting for opponent...*"
-            }
+            return (
+                { "content": "*Waiting for opponent...*" },
+                []
+            )
         
-        if self.game.is_offer_available():
-            return self._get_payload_offer_available()
+        if self.game.is_choosing_advantage():
+            return self._get_payload_choose_advantage(), []
+        elif self.game.is_offer_available():
+            return await self._get_payload_offer_available()
         else:
-            return self._get_payload_draft_offer()
+            return await self._get_payload_draft_offer()
     
     async def send(self, interaction: Interaction):
-        payload = self.get_payload()
-        await interaction.response.send_message(**payload, ephemeral=True)
+        payload, files = await self.get_payload()
+        await interaction.response.send_message(**payload, files=files, ephemeral=True)
         self.message = await interaction.original_response()
         await ControlsManager().add_view(self)
 
@@ -598,9 +739,9 @@ class ControlsView(View):
         if not self.message:
             raise Exception("Unknown message")
 
-        payload: dict = self.get_payload() # type: ignore
-        payload.setdefault("view", None)
+        payload, files = await self.get_payload()
+        payload.setdefault("view", None) # type: ignore
         if interaction:
-            await interaction.response.edit_message(**payload)
+            await interaction.response.edit_message(**payload, attachments=files)
         else:
-            await self.message.edit(**payload)
+            await self.message.edit(**payload, attachments=files)

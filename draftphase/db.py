@@ -29,6 +29,8 @@ def create_tables():
             start_time INTEGER,
             score TEXT(32),
             max_num_offers INTEGER NOT NULL,
+            flip_coin BOOL,
+            flip_advantage BOOL,
             flip_sides BOOL,
             stream_delay INTEGER
         );
@@ -38,7 +40,7 @@ def create_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id INTEGER NOT NULL REFERENCES games(channel_id) ON DELETE CASCADE,
             offer_no INTEGER NOT NULL,
-            player_id INTEGER NOT NULL,
+            team_id INTEGER NOT NULL,
             map TEXT(20),
             environment TEXT(20),
             layout TEXT(5),
@@ -60,4 +62,15 @@ def create_tables():
             lang TEXT(4) NOT NULL,
             url TEXT(100) NOT NULL
         )
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS predictions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id INTEGER NOT NULL REFERENCES games(channel_id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES casters(user_id) ON DELETE CASCADE,
+            team1_score INTEGER NOT NULL
+        )
+        """)
+        cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_game_id_user_id ON predictions (game_id, user_id)
         """)

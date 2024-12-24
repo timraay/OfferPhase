@@ -119,7 +119,7 @@ class GameStateError(Exception):
 
 class CustomException(Exception):
     """Raised to log a custom exception"""
-    def __init__(self, error, *args, log_traceback: bool = False, inplace: bool = False):
+    def __init__(self, error: str, *args: Any, log_traceback: bool = False, inplace: bool = False):
         self.error = error
         self.log_traceback = log_traceback
         self.inplace = inplace

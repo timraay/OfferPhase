@@ -14,11 +14,13 @@ class Bot(commands.Bot):
 
         from draftphase.views.open_controls import (
             AcceptOfferButton, GetControlsButton, DeclineOfferButton, CreateOfferConfirmButton,
-            SelectOfferSelect, CreateOfferSelect,
+            SelectOfferSelect, CreateOfferSelect, TakeAdvantageButton, GiveAdvantageButton,
         )
+        from draftphase.views.cast_prediction import CastPredictionSelect
         self.add_dynamic_items(
             AcceptOfferButton, GetControlsButton, DeclineOfferButton, CreateOfferConfirmButton,
-            SelectOfferSelect, CreateOfferSelect,
+            SelectOfferSelect, CreateOfferSelect, TakeAdvantageButton, GiveAdvantageButton,
+            CastPredictionSelect,
         )
 
 DISCORD_BOT = Bot(
