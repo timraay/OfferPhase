@@ -117,17 +117,18 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
         
         if not game.is_choosing_advantage():
             has_advantage = game.flip_advantage == (team_idx == 2)
-            if not game.has_middleground():
+            if game.has_middleground():
+                if won_coinflip:
+                    embed.description += f"\n-# **First offer:** You get to make the first offer"
+                else:
+                    embed.description += f"\n-# **First offer:** Your opponent let you offer first"
+            
+            else:
                 if has_advantage:
                     embed.description += f"\n-# **Offer advantage:** Opponent can only accept most recent offer"
                 else:
                     embed.description += f"\n-# **Host advantage:** Server will be in a preferred location"
-            
-            if has_advantage:
-                if (won_coinflip == game.has_middleground()):
-                    embed.description += f"\n-# **First offer:** You get to make the first offer"
-                else:
-                    embed.description += f"\n-# **First offer:** Your opponent let you offer first"
+                embed.description += f"\n-# **First offer:** You get to make the first offer"
 
         embeds.append(embed)
         files.append(file)
