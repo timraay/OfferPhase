@@ -127,8 +127,8 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
                 if has_advantage:
                     embed.description += f"\n-# **Offer advantage:** Opponent can only accept most recent offer"
                 else:
-                    embed.description += f"\n-# **Host advantage:** Server will be in a preferred location"
-                embed.description += f"\n-# **First offer:** You get to make the first offer"
+                    embed.description += f"\n-# **Server advantage:** Server will be in a preferred location"
+                    embed.description += f"\n-# **First offer:** You get to make the first offer"
 
         embeds.append(embed)
         files.append(file)
@@ -144,7 +144,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
         else:
             embed.add_field(
                 name=f"{team_name} won the coinflip!",
-                value=f"They get to choose between either of the below two options:\n\n> -# **Offer advantage**\n> Your opponent cannot accept past offers.\n\n> -# **Host advantage**\n> Your team gets the preferred server location. You offer first.",
+                value=f"They get to choose between either of the below two options:\n\n> -# **Offer advantage**\n> Your opponent cannot accept past offers.\n\n> -# **Server advantage**\n> Your team gets the preferred server location. You offer first.",
             )
 
         embeds.append(embed)
