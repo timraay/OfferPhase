@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import itertools
 from typing import Literal
-from discord import Client, ui, Colour, Embed, File, TextChannel
+from discord import Client, Thread, ui, Colour, Embed, File, TextChannel
 import discord
 from discord.utils import format_dt
 
@@ -26,7 +26,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     channel = client.get_channel(game.channel_id)
     if not channel:
         raise ValueError("Channel not found")
-    assert isinstance(channel, TextChannel)
+    assert isinstance(channel, TextChannel | Thread)
 
     team1 = game.get_team(1)
     team2 = game.get_team(2)
@@ -260,7 +260,7 @@ async def get_single_offer_embed(
     return embed, file
 
 
-async def create_game(client: Client, channel: TextChannel, team1_id: int, team2_id: int, subtitle: str | None = None):
+async def create_game(client: Client, channel: TextChannel | Thread, team1_id: int, team2_id: int, subtitle: str | None = None):
     game = Game.create(
         channel=channel,
         team1_id=team1_id,
@@ -274,7 +274,7 @@ async def create_game(client: Client, channel: TextChannel, team1_id: int, team2
 
 async def send_or_edit_game_message(client: Client, game: Game):
     channel = client.get_channel(game.channel_id)
-    if not isinstance(channel, TextChannel):
+    if not isinstance(channel, TextChannel | Thread):
         raise ValueError("Channel not found")
 
     payload, files = await get_game_embeds(client, game)

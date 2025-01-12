@@ -2,6 +2,7 @@ from datetime import timezone
 from dateutil.parser import parse as dt_parse
 
 from discord import Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
+import discord
 from discord.ext import commands
 from discord.utils import format_dt
 
@@ -78,17 +79,27 @@ class GamesCog(commands.GroupCog, group_name="match"):
     async def start_draft_phase(
         self,
         interaction: Interaction,
-        team1: Role,
         team2: Role,
         subtitle: str | None = None,
     ):
+        assert interaction.guild
+        assert isinstance(interaction.user, Member)
+
         if not isinstance(interaction.channel, TextChannel):
             raise CustomException(
                 "Cannot use this here!",
                 "Command must not be invoked from within a thread or forum post."
             )
 
-        assert interaction.guild
+        for rep_role_id in TEAMS:
+            team1 = discord.utils.get(interaction.user.roles, id=rep_role_id)
+            if team1:
+                break
+        else:
+            raise CustomException(
+                "You are not a Team Rep"
+            )
+
         bot_perms = interaction.channel.permissions_for(interaction.guild.me)
         if not bot_perms.is_superset(Permissions(309237661696)):
             # TODO: Update perms
@@ -108,13 +119,19 @@ class GamesCog(commands.GroupCog, group_name="match"):
         assert_team_role_validity(team1)
         assert_team_role_validity(team2)
 
+        thread = await interaction.channel.create_thread(
+            name=f"{team1.name}-vs-{team2.name}".replace("*", "")
+        )
+
         await create_game(
             interaction.client,
-            interaction.channel,
+            thread,
             team1.id,
             team2.id,
             subtitle,
         )
+
+        await thread.send(f"{team1.mention} {team2.mention}")
 
         await interaction.response.send_message(embed=get_success_embed(
             title="Match created!",

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from random import random
 import re
 from typing import Literal, Self, Sequence
-from discord import Member, TextChannel
+from discord import Member, TextChannel, Thread
 import discord
 from pydantic import BaseModel, Field
 
@@ -389,7 +389,7 @@ class Game(BaseModel):
     @classmethod
     def create(
         cls,
-        channel: TextChannel,
+        channel: TextChannel | Thread,
         team1_id: int,
         team2_id: int,
         message_id: int | None = None,
