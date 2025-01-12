@@ -74,3 +74,14 @@ def create_tables():
         cur.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_game_id_user_id ON predictions (game_id, user_id)
         """)
+
+        
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS calendar (
+            guild_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            message_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            PRIMARY KEY(channel_id, category_id)
+        )
+        """)

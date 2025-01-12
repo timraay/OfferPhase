@@ -1,0 +1,115 @@
+from typing import Optional
+import discord
+from discord import CategoryChannel, TextChannel, app_commands, Interaction
+from discord.ext import commands, tasks
+import traceback
+
+from draftphase.calendar import CalendarCategory, games_to_calendar_embed
+from draftphase.db import get_cursor
+from draftphase.discord_utils import CustomException, get_success_embed
+
+@app_commands.guild_only()
+class CalendarCog(commands.GroupCog, group_name="calendar"):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+        self.calendar_updater.start()
+
+    @app_commands.command(name="list", description="Show a list of all categories listed on the calendar")
+    async def list_calendar(self, interaction: Interaction):
+        assert interaction.guild is not None
+
+        embed = discord.Embed()
+        calendars = CalendarCategory.load_all_in_guild(interaction.guild.id)
+        
+        if calendars:
+            embed.title = f"There are {str(len(calendars))} listed categories."
+
+            channel_groups: dict[TextChannel, list[CalendarCategory]] = {}
+            for calendar in calendars:
+                channel = await calendar.get_channel()
+                category = await calendar.get_category()
+                if not (channel and category):
+                    continue
+                channel_groups.setdefault(channel, []).append(calendar)
+            
+            for channel, calendars in channel_groups.items():
+                field_value = f"-# *{channel.mention}*"
+                for calendar in calendars:
+                    category = await calendar.get_category()
+                    if category:
+                        field_value += f"\n{category.name}"
+                embed.add_field(
+                    name=channel.name,
+                    value=field_value,
+                )
+        else:
+            embed.title = "There are no listed categories."
+            embed.description = f"You can add one with the following command:\n`/calendar add <category> <channel>`"
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="add", description="Add a channel category to the calendar")
+    @app_commands.describe(
+        category_id="The ID of the category to add",
+        channel="The channel to send the calendar to"
+    )
+    async def add_to_calendar(self, interaction: Interaction, category_id: int, channel: Optional[TextChannel] = None):
+        assert interaction.guild is not None
+        assert interaction.channel is not None
+
+        category = interaction.guild.get_channel(category_id)
+        if not category or not isinstance(category, CategoryChannel):
+            raise CustomException(
+                "Invalid category",
+                "ID does not belong to a channel category"
+            )
+        
+        if not channel:
+            if not isinstance(interaction.channel, TextChannel):
+                raise CustomException(
+                    "Invalid channel",
+                    "You must be in a normal text channel or specify one using the optional `channel` parameter."
+                )
+            channel = interaction.channel
+
+        if CalendarCategory.load(category.id, channel.id):
+            raise CustomException(
+                "Invalid category"
+                "Category is already added"
+            )
+
+        await CalendarCategory.create(category, channel)
+
+        await interaction.response.send_message(embed=get_success_embed(
+            "Category added",
+            f"**{category.name}** is now part of {channel.mention}."
+        ), ephemeral=True)
+
+    @tasks.loop(minutes=10)
+    async def calendar_updater(self):
+        try:
+            for calendar in CalendarCategory.load_all():
+                message = await calendar.get_message()
+                category = await calendar.get_category()
+
+                if not (message and category):
+                    calendar.delete()
+                    continue
+                
+                try:
+                    games = await calendar.get_games()
+                    embed = games_to_calendar_embed(category, games)
+                    await message.edit(embed=embed)
+                except:
+                    print("Failed to update calendar in channel", message.channel.id, "for category", category.id)
+                    traceback.print_exc()
+        except:
+            print(f'Explosions! Calendar failed to update...')
+            traceback.print_exc()
+    @calendar_updater.before_loop
+    async def calendar_updater_before_loop(self):
+        await self.bot.wait_until_ready()
+
+async def setup(bot):
+    await bot.add_cog(CalendarCog(bot))

@@ -2,7 +2,7 @@ from cachetools import cached, TTLCache
 from datetime import datetime, timezone
 from random import random
 import re
-from typing import Literal, Self
+from typing import Literal, Self, Sequence
 from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
@@ -422,6 +422,29 @@ class Game(BaseModel):
             )
     
     @classmethod
+    def _load_row(cls, data: tuple):
+        channel_id = int(data[1])
+        offers = Offer.load_for_game(channel_id)
+        streams = Stream.load_for_game(channel_id)
+        return cls(
+            message_id=data[0],
+            channel_id=channel_id,
+            guild_id=data[2],
+            team1_id=data[3],
+            team2_id=data[4],
+            subtitle=data[5],
+            start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
+            score=data[7],
+            max_num_offers=data[8],
+            flip_coin=data[9],
+            flip_advantage=data[10],
+            flip_sides=data[11],
+            stream_delay=data[12],
+            offers=offers,
+            streams=streams,
+        )
+
+    @classmethod
     def load(cls, channel_id: int):
         with get_cursor() as cur:
             cur.execute("SELECT * FROM games WHERE channel_id = ?", (channel_id,))
@@ -429,26 +452,20 @@ class Game(BaseModel):
             if not data:
                 raise ValueError("No game exists with ID %s" % channel_id)
             
-            channel_id = int(data[1])
-            offers = Offer.load_for_game(channel_id)
-            streams = Stream.load_for_game(channel_id)
-            return cls(
-                message_id=data[0],
-                channel_id=channel_id,
-                guild_id=data[2],
-                team1_id=data[3],
-                team2_id=data[4],
-                subtitle=data[5],
-                start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
-                score=data[7],
-                max_num_offers=data[8],
-                flip_coin=data[9],
-                flip_advantage=data[10],
-                flip_sides=data[11],
-                stream_delay=data[12],
-                offers=offers,
-                streams=streams,
-            )
+            return cls._load_row(data)
+
+    @classmethod
+    def load_many(cls, channel_ids: Sequence[int]):
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM games WHERE channel_id IN ?", (channel_ids,))
+            rows = cur.fetchall()
+            games: list[Self] = []
+            
+            for data in rows:
+                game = cls._load_row(data)
+                games.append(game)
+        
+        return games
 
     def save(self):
         data = self.model_dump()
@@ -514,6 +531,16 @@ class Game(BaseModel):
                 name="Unknown Team",
             )
         )
+    
+    def get_team_faction(self, team_idx: Literal[1, 2]):
+        offer = self.get_accepted_offer()
+        if not offer:
+            return None
+        
+        map_details = offer.get_map_details()
+        is_allies = (team_idx == 1) != self.flip_sides
+
+        return map_details.allies if is_allies else map_details.axis
 
     def turn(self, *, opponent: bool = False):
         if self.is_choosing_advantage():
