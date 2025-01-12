@@ -114,7 +114,8 @@ class GetControlsButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
                     "https://tenor.com/view/no-kanye-west-all-falls-down-song-nope-stop-right-there-gif-20589089",
                     "https://tenor.com/view/you-shall-not-pass-lotr-do-not-enter-not-allowed-scream-gif-16729885",
                     "https://tenor.com/view/no-way-kim-dao-nope-not-allowed-refused-gif-17877789",
-                ])
+                ]),
+                ephemeral=True
             )
 
         view = ControlsView(game, member)

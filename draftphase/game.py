@@ -555,12 +555,13 @@ class Game(BaseModel):
         if member.guild_permissions.administrator:
             return True
 
-        if discord.utils.get(member.roles, id=self.team1_id) is None:
-            return False
-        if discord.utils.get(member.roles, id=self.team2_id) is None:
-            return False
+        if (
+            discord.utils.get(member.roles, id=self.team1_id)
+            or discord.utils.get(member.roles, id=self.team2_id)
+        ):
+            return True
 
-        return True
+        return False
 
     def is_users_turn(self, member: Member):
         if member.guild_permissions.administrator:
