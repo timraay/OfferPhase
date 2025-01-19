@@ -295,3 +295,18 @@ async def send_or_edit_game_message(client: Client, game: Game):
         game.save()
 
     return message
+
+async def delete_game_message(client: Client, game: Game):
+    if not game.message_id:
+        return
+
+    channel = client.get_channel(game.channel_id)
+    if not isinstance(channel, TextChannel):
+        return
+
+    try:
+        message = await channel.fetch_message(game.message_id)
+    except discord.NotFound:
+        return
+    
+    await message.delete()

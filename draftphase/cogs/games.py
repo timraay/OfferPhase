@@ -2,14 +2,14 @@ import asyncio
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
 
-from discord import AllowedMentions, ChannelType, Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
+from discord import AllowedMentions, ButtonStyle, ChannelType, Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
 from discord.ext import commands
 from discord.utils import format_dt
 
 from draftphase.bot import Bot
 from draftphase.config import get_config
-from draftphase.discord_utils import CustomException, get_success_embed
-from draftphase.embeds import create_game, send_or_edit_game_message
+from draftphase.discord_utils import CallableButton, CustomException, View, get_danger_embed, get_success_embed
+from draftphase.embeds import create_game, delete_game_message, send_or_edit_game_message
 from draftphase.game import FLAGS, Caster, Game, cached_get_casters, cached_get_streams_for_game
 from draftphase.maps import TEAMS
 from draftphase.views.open_controls import ControlsManager
@@ -150,6 +150,23 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await send_or_edit_game_message(interaction.client, game)
         await interaction.followup.send(embed=get_success_embed("Resent message!"))
     
+    @app_commands.command(name="remove")
+    async def remove_draft_phase(self, interaction: Interaction):
+        assert interaction.channel_id is not None
+        game = Game.load(interaction.channel_id)
+
+        async def _remove_draft_phase(_interaction: Interaction):
+            await delete_game_message(interaction.client, game)
+            game.delete()
+            await _interaction.response.edit_message(embed=get_success_embed("Removed offer phase from this channel!"), view=None)
+
+        view = View(timeout=300)
+        view.add_item(CallableButton(_remove_draft_phase, style=ButtonStyle.red, label="Confirm", single_use=True))
+        await interaction.response.send_message(embed=get_danger_embed(
+            "Are you sure you want to remove this offer phase?",
+            "This cannot be undone. The channel will remain."
+        ), view=view, ephemeral=True)
+
     @app_commands.command(name="undo-action")
     async def undo_draft_action(self, interaction: Interaction, amount: int = 1):
         if amount <= 0:

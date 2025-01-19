@@ -491,6 +491,10 @@ class Game(BaseModel):
                 data
             )
 
+    def delete(self):
+        with get_cursor() as cur:
+            cur.execute("DELETE FROM games WHERE channel_id = ?", (self.channel_id,))
+
     def get_scores(self) -> tuple[int, int] | None:
         if not self.score:
             return None
