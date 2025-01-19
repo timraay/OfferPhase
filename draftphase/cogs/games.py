@@ -130,16 +130,11 @@ class GamesCog(commands.GroupCog, group_name="match"):
         )
 
         config = get_config()
+        thread_content = f"{team1.mention} {team2.mention}"
         if config.bot.organiser_role_id:
-            role = interaction.guild.get_role(config.bot.organiser_role_id)
-            if role:
-                await asyncio.gather(*[
-                    thread.add_user(member)
-                    for member in role.members
-                ])
-
+            thread_content += f" <@&{config.bot.organiser_role_id}>"
         await thread.send(
-            f"{team1.mention} {team2.mention}",
+            thread_content,
             allowed_mentions=AllowedMentions(roles=True)
         )
 
