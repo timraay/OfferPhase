@@ -1,4 +1,4 @@
-from discord import Member, app_commands, Interaction
+from discord import Member, Permissions, app_commands, Interaction
 from discord.ext import commands
 
 from draftphase.bot import Bot
@@ -7,9 +7,15 @@ from draftphase.game import Caster
 
 @app_commands.guild_only()
 @app_commands.default_permissions(manage_guild=True)
-class CastersCog(commands.GroupCog, group_name="casters"):
+class CastersCog(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
+
+    casters_group = app_commands.Group(
+        name="casters",
+        guild_only=True,
+        default_permissions=Permissions(manage_guild=True),
+    )
 
     @app_commands.command(name="register")
     async def register_as_caster(self, interaction: Interaction, name: str, channel_url: str):
@@ -27,7 +33,7 @@ class CastersCog(commands.GroupCog, group_name="casters"):
             ephemeral=True
         )
 
-    @app_commands.command(name="add")
+    @casters_group.command(name="add")
     async def add_caster(self, interaction: Interaction, member: Member, name: str, channel_url: str):
         caster, created = Caster.upsert(interaction.user.id, name, channel_url)
         await interaction.response.send_message(
