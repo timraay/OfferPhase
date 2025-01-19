@@ -5,6 +5,8 @@ from draftphase.bot import Bot
 from draftphase.discord_utils import get_success_embed
 from draftphase.game import Caster
 
+@app_commands.guild_only()
+@app_commands.default_permissions(manage_guild=True)
 class CastersCog(commands.GroupCog, group_name="casters"):
     def __init__(self, bot: Bot):
         self.bot = bot

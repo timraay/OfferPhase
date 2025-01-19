@@ -9,6 +9,7 @@ from draftphase.db import get_cursor
 from draftphase.discord_utils import CustomException, get_success_embed
 
 @app_commands.guild_only()
+@app_commands.default_permissions(manage_guild=True)
 class CalendarCog(commands.GroupCog, group_name="calendar"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
