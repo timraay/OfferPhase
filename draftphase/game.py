@@ -548,7 +548,10 @@ class Game(BaseModel):
 
     def turn(self, *, opponent: bool = False):
         if self.is_choosing_advantage():
-            return 2 if self.flip_coin else 1
+            if opponent:
+                return 1 if self.flip_coin else 2
+            else:
+                return 2 if self.flip_coin else 1
         
         if ((len(self.offers) + int(bool(self.flip_advantage) != self.has_middleground())) % 2 == 0) != opponent:
             return 2

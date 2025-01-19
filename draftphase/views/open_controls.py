@@ -2,20 +2,44 @@ import asyncio
 import random
 from re import Match
 from typing import Literal, Sequence
-from discord import ButtonStyle, File, Interaction, NotFound, SelectOption, ui, InteractionMessage, Member
+from discord import AllowedMentions, ButtonStyle, Embed, File, Interaction, NotFound, SelectOption, TextChannel, ui, InteractionMessage, Member
 from draftphase.bot import DISCORD_BOT
 from draftphase.discord_utils import CustomException, GameStateError, MessagePayload, View, handle_error_wrap
 from draftphase.embeds import get_single_offer_embed
 from draftphase.emojis import faction_to_emoji, layout_to_emoji
 from draftphase.game import Game
 from draftphase.maps import MAPS, get_all_layout_combinations, get_layout_from_filtered_idx
-from draftphase.utils import SingletonMeta
+from draftphase.utils import SingletonMeta, safe_create_task
 
 def assert_is_users_turn(game: Game, member: Member):
     if not game.is_users_turn(member):
         raise CustomException(
             "It is not your turn!"
         )
+
+async def send_in_thread(game: Game, content: str):
+    channel = DISCORD_BOT.get_channel(game.channel_id)
+    if not channel:
+        channel = await DISCORD_BOT.fetch_channel(game.channel_id)
+    
+    assert isinstance(channel, TextChannel)
+    assert DISCORD_BOT.user is not None
+    for thread in channel.threads:
+        if thread.owner_id == DISCORD_BOT.user.id:
+            break
+    else:
+        return
+    
+    await thread.send(
+        embed=Embed(color=0xFFFFFF, description=content),
+        allowed_mentions=AllowedMentions(roles=False),
+    )
+
+def safe_send_in_thread(game: Game, content: str):
+    safe_create_task(
+        send_in_thread(game, content),
+        err_msg="Failed to send message to game thread"
+    )
 
 class ControlsManager(metaclass=SingletonMeta):
     def __init__(self) -> None:
@@ -195,11 +219,23 @@ class AcceptOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\
 
         if self.confirmed:
             turn = game.turn()
+            opponent = game.turn(opponent=True)
             offer = game.offers[self.offer_idx]
             flip_sides = (turn != self.faction_idx)
             game.accept_offer(offer, flip_sides=flip_sides)
             await interaction.response.defer()
             await cm.delete_for_game(game)
+
+            map_details = offer.get_map_details()
+            faction = game.get_team_faction(turn)
+            faction_opponent = game.get_team_faction(opponent)
+            assert faction is not None
+            assert faction_opponent is not None
+            safe_send_in_thread(game, (
+                f"<@&{game.get_team(turn).public_role_id}> accepted **{map_details.name} - {map_details.get_objectives(offer.layout)[1]}**"
+                f" ({offer.get_environment().name}) and will be playing as **{faction.name}** {faction.emojis.default}"
+                f"\n-# <@&{game.get_team(opponent).public_role_id}> will be playing as **{faction_opponent.name}** {faction_opponent.emojis.default}"
+            ))
         else:
             await view.edit(interaction=interaction)
 
@@ -243,9 +279,12 @@ class DeclineOfferButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>
         view.set_declined(self.offer_idx)
 
         if self.confirmed:
+            turn = game.turn()
             game.skip_latest_offer()
             await cm.update_for_game(game)
             await interaction.response.defer()
+
+            safe_send_in_thread(game, f"<@&{game.get_team(turn).public_role_id}> skipped the offer")
         else:
             await view.edit(interaction=interaction)
 
@@ -336,13 +375,19 @@ class CreateOfferConfirmButton(
         environment = map_details.environments[self.environment_idx]
         layout = get_layout_from_filtered_idx(self.midpoint_idx, self.layout_idx)
 
-        game.create_offer(
+        turn = game.turn()
+        offer = game.create_offer(
             map=map_name,
             environment=environment.key,
             layout=layout,
         )
         await cm.update_for_game(game)
         await interaction.response.defer()
+
+        safe_send_in_thread(game, (
+            f"<@&{game.get_team(turn).public_role_id}> offered **{map_details.name} - {map_details.get_objectives(offer.layout)[1]}**"
+            f" ({offer.get_environment().name})"
+        ))
 
 class TakeAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+):takeadvantage"):
     def __init__(self,
@@ -369,10 +414,25 @@ class TakeAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id
         cm = ControlsManager()
         view = cm.safe_get_view(game, member)
 
+        turn = game.turn()
+        opponent = game.turn(opponent=True)
         game.take_advantage()
         view.reset()
         await cm.update_for_game(game)
         await interaction.response.defer()
+
+        team_mention = f"<@&{game.get_team(turn).public_role_id}>"
+        opponent_mention = f"<@&{game.get_team(opponent).public_role_id}>"
+        if game.has_middleground():
+            safe_send_in_thread(game, (
+                f"{team_mention} chose to make the **first offer**."
+                f"\n-# {opponent_mention} can offer afterwards."
+            ))
+        else:
+            safe_send_in_thread(game, (
+                f"{team_mention} took **Offer Advantage**: {opponent_mention} can no longer accept previous offers."
+                f"\n-# {opponent_mention} receives **Server Advantage**: Server location will favor their team."
+            ))
 
 class GiveAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id>\d+):giveadvantage"):
     def __init__(self,
@@ -399,10 +459,25 @@ class GiveAdvantageButton(ui.DynamicItem[ui.Button], template=r"ctrl:(?P<game_id
         cm = ControlsManager()
         view = cm.safe_get_view(game, member)
 
+        turn = game.turn()
+        opponent = game.turn(opponent=True)
         game.give_advantage()
         view.reset()
         await cm.update_for_game(game)
         await interaction.response.defer()
+
+        team_mention = f"<@&{game.get_team(turn).public_role_id}>"
+        opponent_mention = f"<@&{game.get_team(opponent).public_role_id}>"
+        if game.has_middleground():
+            safe_send_in_thread(game, (
+                f"{team_mention} lets {opponent_mention} make the **first offer**."
+                f"\n-# They themselves will offer second."
+            ))
+        else:
+            safe_send_in_thread(game, (
+                f"{team_mention} took **Server Advantage**: Server location will favor their team."
+                f"\n-# {opponent_mention} receives **Server Advantage**: {opponent_mention} can no longer accept previous offers."
+            ))
 
 
 class ControlsView(View):
