@@ -18,6 +18,7 @@ def assert_im_size(v: Path, expected_size: tuple[int, int]):
 class Bot(BaseModel, frozen=True):
     token: str
     emojis: dict[str, str]
+    organiser_role_id: int | None = None
 
 class Team(BaseModel, frozen=True):
     rep_role_id: int

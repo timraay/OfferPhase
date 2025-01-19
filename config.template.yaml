@@ -50,6 +50,8 @@ bot:
     obj_hor_001: 
     obj_hor_000: 
 
+  # The role ID for event organisers. Currently only used for thread creation.
+  organiser_role_id: 
 
 teams:
   # The name of the team

@@ -1,11 +1,13 @@
+import asyncio
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
 
-from discord import Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
+from discord import AllowedMentions, ChannelType, Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
 from discord.ext import commands
 from discord.utils import format_dt
 
 from draftphase.bot import Bot
+from draftphase.config import get_config
 from draftphase.discord_utils import CustomException, get_success_embed
 from draftphase.embeds import create_game, send_or_edit_game_message
 from draftphase.game import FLAGS, Caster, Game, cached_get_casters, cached_get_streams_for_game
@@ -90,7 +92,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         assert interaction.guild
         bot_perms = interaction.channel.permissions_for(interaction.guild.me)
-        if not bot_perms.is_superset(Permissions(309237661696)):
+        if not bot_perms.is_superset(Permissions(343597444096)):
             # TODO: Update perms
             raise CustomException(
                 "Bot is missing permissions!",
@@ -100,13 +102,17 @@ class GamesCog(commands.GroupCog, group_name="match"):
                     "- View Channel\n"
                     "- Send Messages\n"
                     "- Send Messages in Threads\n"
-                    "- Create Public Threads\n"
+                    "- Create Private Threads\n"
+                    "- Manage Messages\n"
+                    "- Attach Files\n"
                     "- Embed Links"
                 )
             )
         
         assert_team_role_validity(team1)
         assert_team_role_validity(team2)
+
+        await interaction.response.defer(ephemeral=True)
 
         await create_game(
             interaction.client,
@@ -116,9 +122,30 @@ class GamesCog(commands.GroupCog, group_name="match"):
             subtitle,
         )
 
-        await interaction.response.send_message(embed=get_success_embed(
+        thread = await interaction.channel.create_thread(
+            name=interaction.channel.name.replace("-", " "),
+            auto_archive_duration=10080,
+            type=ChannelType.private_thread,
+            invitable=False,
+        )
+
+        config = get_config()
+        if config.bot.organiser_role_id:
+            role = interaction.guild.get_role(config.bot.organiser_role_id)
+            if role:
+                await asyncio.gather(*[
+                    thread.add_user(member)
+                    for member in role.members
+                ])
+
+        await thread.send(
+            f"{team1.mention} {team2.mention}",
+            allowed_mentions=AllowedMentions(roles=True)
+        )
+
+        await interaction.followup.send(embed=get_success_embed(
             title="Match created!",
-        ), ephemeral=True)
+        ))
 
     @app_commands.command(name="resend")
     async def resend_draft_phase(self, interaction: Interaction):
