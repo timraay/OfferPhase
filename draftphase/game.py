@@ -467,6 +467,19 @@ class Game(BaseModel):
         
         return games
 
+    @classmethod
+    def load_all(cls):
+        with get_cursor() as cur:
+            cur.execute("SELECT * FROM games")
+            rows = cur.fetchall()
+            games: list[Self] = []
+            
+            for data in rows:
+                game = cls._load_row(data)
+                games.append(game)
+        
+        return games
+
     def save(self):
         data = self.model_dump()
         if self.start_time:

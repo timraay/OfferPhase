@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Optional
 import discord
 from discord import CategoryChannel, TextChannel, app_commands, Interaction
@@ -6,6 +7,13 @@ import traceback
 
 from draftphase.calendar import CalendarCategory, games_to_calendar_embed
 from draftphase.discord_utils import CustomException, get_success_embed
+from draftphase.game import Game
+
+class ChannelEmojis(Enum):
+    PLANNED = '📆'
+    OFFERING = '🔨'
+    ONGOING = '👀'
+    FINISHED = '✅'
 
 @app_commands.guild_only()
 @app_commands.default_permissions(manage_guild=True)
@@ -14,6 +22,7 @@ class CalendarCog(commands.GroupCog, group_name="calendar"):
         self.bot = bot
 
         self.calendar_updater.start()
+        self.channel_emoji_updater.start()
 
     @app_commands.command(name="list", description="Show a list of all categories listed on the calendar")
     async def list_calendar(self, interaction: Interaction):
@@ -110,6 +119,40 @@ class CalendarCog(commands.GroupCog, group_name="calendar"):
     @calendar_updater.before_loop
     async def calendar_updater_before_loop(self):
         await self.bot.wait_until_ready()
+    
+    @tasks.loop(minutes=10)
+    async def channel_emoji_updater(self):
+        try:
+            games = Game.load_all()
+            for game in games:
+                channel = self.bot.get_channel(game.channel_id)
+                if channel:
+                    assert isinstance(channel, TextChannel)
+                    new_name = channel.name
+                    if any(
+                        new_name.startswith(emoji.value)
+                        for emoji in ChannelEmojis
+                    ):
+                        new_name = new_name[1:]
+                    
+                    if game.score:
+                        emoji = ChannelEmojis.FINISHED
+                    elif game.has_started():
+                        emoji = ChannelEmojis.ONGOING
+                    elif game.is_done():
+                        emoji = ChannelEmojis.PLANNED
+                    else:
+                        emoji = ChannelEmojis.OFFERING
+                    
+                    new_name = emoji.value + new_name
+                    await channel.edit(name=new_name)
+        except:
+            print(f'Explosions! Channel names failed to update...')
+            traceback.print_exc()
+    @channel_emoji_updater.before_loop
+    async def channel_emoji_updater_before_loop(self):
+        await self.bot.wait_until_ready()
+
 
 async def setup(bot):
     await bot.add_cog(CalendarCog(bot))
