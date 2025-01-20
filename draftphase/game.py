@@ -702,6 +702,7 @@ class Game(BaseModel):
         
         if not self.offers:
             self.flip_advantage = None
+            self.save()
         
         elif self.is_done():
             offer = self.get_accepted_offer()
