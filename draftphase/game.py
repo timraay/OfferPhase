@@ -576,13 +576,20 @@ class Game(BaseModel):
 
         team_id = self.team_idx_to_id(self.turn())
         return discord.utils.get(member.roles, id=team_id) is not None
+    
+    def gets_first_offer(self, team_idx: Literal[1, 2]):
+        if self.has_middleground():
+            i = 2 if self.flip_advantage else 1
+        else:
+            i = 1 if self.flip_advantage else 2
+        return i == team_idx
 
     def get_offers_for_team_idx(self, team_idx: Literal[1, 2]):
-        offset = (team_idx + 1) % 2
+        offset = int(not self.gets_first_offer(team_idx))
         return self.offers[offset::2]
 
     def get_max_num_offers_for_team_idx(self, team_idx: Literal[1, 2]):
-        if (team_idx % 2 == 1):
+        if self.gets_first_offer(team_idx):
             return (self.max_num_offers // 2) + (self.max_num_offers % 2)
         else:
             return (self.max_num_offers // 2)
