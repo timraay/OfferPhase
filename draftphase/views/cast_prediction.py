@@ -6,7 +6,7 @@ from draftphase.discord_utils import CustomException, View, get_success_embed, h
 from draftphase.game import Game, Prediction
 
 def assert_game_not_started(game: Game):
-    if game.has_started():
+    if game.has_started() or game.score:
         raise CustomException(
             "This game has already started!",
             "No more predictions can be casted."

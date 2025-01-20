@@ -433,7 +433,7 @@ class Game(BaseModel):
             team1_id=data[3],
             team2_id=data[4],
             subtitle=data[5],
-            start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
+            start_time=datetime.fromtimestamp(data[6], tz=timezone.utc) if data[6] else None,
             score=data[7],
             max_num_offers=data[8],
             flip_coin=data[9],
