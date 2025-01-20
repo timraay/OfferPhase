@@ -13,11 +13,16 @@ class CastersCog(commands.Cog):
 
     casters_group = app_commands.Group(
         name="casters",
+        description="Manage casters",
         guild_only=True,
         default_permissions=Permissions(manage_guild=True),
     )
 
-    @app_commands.command(name="register")
+    @app_commands.command(name="register", description="Update your caster information")
+    @app_commands.describe(
+        name="Your name",
+        channel_url="The link to your channel",
+    )
     async def register_as_caster(self, interaction: Interaction, name: str, channel_url: str):
         caster, created = Caster.upsert(interaction.user.id, name, channel_url)
         await interaction.response.send_message(
@@ -33,7 +38,12 @@ class CastersCog(commands.Cog):
             ephemeral=True
         )
 
-    @casters_group.command(name="add")
+    @casters_group.command(name="add", description="Update someone's caster information")
+    @app_commands.describe(
+        member="The caster",
+        name="The caster's name",
+        channel_url="The link to the caster's channel",
+    )
     async def add_caster(self, interaction: Interaction, member: Member, name: str, channel_url: str):
         caster, created = Caster.upsert(interaction.user.id, name, channel_url)
         await interaction.response.send_message(

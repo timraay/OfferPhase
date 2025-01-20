@@ -76,7 +76,12 @@ class GamesCog(commands.GroupCog, group_name="match"):
         description="Add or remove streamers",
     )
 
-    @app_commands.command(name="create")
+    @app_commands.command(name="create", description="Create a new offer phase in this channel")
+    @app_commands.describe(
+        team1="Rep role of team 1",
+        team2="Rep role of team 2",
+        subtitle="Description of the match"
+    )
     async def start_draft_phase(
         self,
         interaction: Interaction,
@@ -142,7 +147,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
             title="Match created!",
         ))
 
-    @app_commands.command(name="resend")
+    @app_commands.command(name="resend", description="Resend the message of this channel's match")
     async def resend_draft_phase(self, interaction: Interaction):
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
@@ -150,7 +155,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await send_or_edit_game_message(interaction.client, game)
         await interaction.followup.send(embed=get_success_embed("Resent message!"))
     
-    @app_commands.command(name="remove")
+    @app_commands.command(name="remove", description="Remove this channel's offer phase")
     async def remove_draft_phase(self, interaction: Interaction):
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
@@ -167,7 +172,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
             "This cannot be undone. The channel will remain."
         ), view=view, ephemeral=True)
 
-    @app_commands.command(name="undo-action")
+    @app_commands.command(name="undo-action", description="Undo one or more actions of this channel's offer phase")
+    @app_commands.describe(
+        amount="The amount of actions to undo"
+    )
     async def undo_draft_action(self, interaction: Interaction, amount: int = 1):
         if amount <= 0:
             raise CustomException("Invalid argument!", "Amount must be greater than 0")
@@ -190,7 +198,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
             f"Undone {successes} actions!"
         ))
 
-    @set_group.command(name="team1")
+    @set_group.command(name="team1", description="Update the rep role of team 1")
+    @app_commands.describe(
+        role="The new rep role of team 1"
+    )
     async def set_team1(self, interaction: Interaction, role: Role):
         assert_team_role_validity(role)
 
@@ -209,7 +220,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await send_or_edit_game_message(interaction.client, game)
         
-    @set_group.command(name="team2")
+    @set_group.command(name="team2", description="Update the rep role of team 2")
+    @app_commands.describe(
+        role="The new rep role of team 2"
+    )
     async def set_team2(self, interaction: Interaction, role: Role):
         assert_team_role_validity(role)
 
@@ -229,7 +243,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await send_or_edit_game_message(interaction.client, game)
 
 
-    @set_group.command(name="start_time")
+    @set_group.command(name="start_time", description="Update the start time")
+    @app_commands.describe(
+        value="The new start time in UTC"
+    )
     async def set_start_time(self, interaction: Interaction, value: str):
         try:
             start_time = dt_parse(value, fuzzy=True, dayfirst=True)
@@ -256,7 +273,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await send_or_edit_game_message(interaction.client, game)
 
-    @reset_group.command(name="start_time")
+    @reset_group.command(name="start_time", description="Remove the start time")
     async def reset_start_time(self, interaction: Interaction):
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
@@ -273,7 +290,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await send_or_edit_game_message(interaction.client, game)
 
 
-    @set_group.command(name="score")
+    @set_group.command(name="score", description="Update the score")
+    @app_commands.describe(
+        score="The new score"
+    )
     async def set_score(self, interaction: Interaction, score: str):
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
@@ -290,7 +310,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await send_or_edit_game_message(interaction.client, game)
 
-    @reset_group.command(name="score")
+    @reset_group.command(name="score", description="Remove the score")
     async def reset_score(self, interaction: Interaction):
         assert interaction.channel_id is not None
         game = Game.load(interaction.channel_id)
@@ -307,7 +327,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await send_or_edit_game_message(interaction.client, game)
 
 
-    @streamers_group.command(name="add")
+    @streamers_group.command(name="add", description="Assign streamers to this match")
     @app_commands.autocomplete(
         caster_id=autocomplete_caster
     )
@@ -316,6 +336,10 @@ class GamesCog(commands.GroupCog, group_name="match"):
     )
     @app_commands.choices(
         lang=LANG_CHOICES
+    )
+    @app_commands.describe(
+        caster_id="The caster that will be streaming this match",
+        lang="The stream's language"
     )
     async def add_stream(self, interaction: Interaction, caster_id: str, lang: str):
         assert interaction.channel_id is not None
@@ -334,9 +358,15 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await send_or_edit_game_message(interaction.client, game)
 
-    @streamers_group.command(name="add-manual")
+    @streamers_group.command(name="add-manual", description="Assign a yet-to-be registered caster as streamer")
     @app_commands.choices(
         lang=LANG_CHOICES
+    )
+    @app_commands.describe(
+        member="The user that will be streaming this match",
+        name="The name of the caster",
+        channel_url="The channel URL of the caster",
+        lang="The stream's language"
     )
     async def add_stream_manually(self, interaction: Interaction, member: Member, name: str, channel_url: str, lang: str):
         assert interaction.channel_id is not None
@@ -355,12 +385,15 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await send_or_edit_game_message(interaction.client, game)
 
-    @streamers_group.command(name="remove")
+    @streamers_group.command(name="remove", description="Remove a streamer from this match")
     @app_commands.autocomplete(
         stream_id_str=autocomplete_stream
     )
     @app_commands.rename(
         stream_id_str="stream"
+    )
+    @app_commands.describe(
+        stream_id_str="The stream to remove"
     )
     async def remove_stream(self, interaction: Interaction, stream_id_str: str):
         assert interaction.channel_id is not None

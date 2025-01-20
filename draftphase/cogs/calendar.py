@@ -5,7 +5,6 @@ from discord.ext import commands, tasks
 import traceback
 
 from draftphase.calendar import CalendarCategory, games_to_calendar_embed
-from draftphase.db import get_cursor
 from draftphase.discord_utils import CustomException, get_success_embed
 
 @app_commands.guild_only()
