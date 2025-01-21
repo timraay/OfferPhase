@@ -60,12 +60,23 @@ class CalendarCog(commands.GroupCog, group_name="calendar"):
 
     @app_commands.command(name="add", description="Add a channel category to the calendar")
     @app_commands.describe(
-        category_id="The ID of the category to add",
+        category_id_str="The ID of the category to add",
         channel="The channel to send the calendar to"
     )
-    async def add_to_calendar(self, interaction: Interaction, category_id: int, channel: Optional[TextChannel] = None):
+    @app_commands.rename(
+        category_id_str="category_id",
+    )
+    async def add_to_calendar(self, interaction: Interaction, category_id_str: str, channel: Optional[TextChannel] = None):
         assert interaction.guild is not None
         assert interaction.channel is not None
+
+        try:
+            category_id = int(category_id_str)
+        except ValueError:
+            raise CustomException(
+                "Invalid category",
+                "Not a valid ID"
+            )
 
         category = interaction.guild.get_channel(category_id)
         if not category or not isinstance(category, CategoryChannel):
@@ -82,7 +93,11 @@ class CalendarCog(commands.GroupCog, group_name="calendar"):
                 )
             channel = interaction.channel
 
-        if CalendarCategory.load(category.id, channel.id):
+        try:
+            CalendarCategory.load(category.id, channel.id)
+        except ValueError:
+            pass
+        else:
             raise CustomException(
                 "Invalid category"
                 "Category is already added"

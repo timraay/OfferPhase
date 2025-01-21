@@ -457,7 +457,10 @@ class Game(BaseModel):
     @classmethod
     def load_many(cls, channel_ids: Sequence[int]):
         with get_cursor() as cur:
-            cur.execute("SELECT * FROM games WHERE channel_id IN ?", (channel_ids,))
+            cur.execute(
+                "SELECT * FROM games WHERE channel_id IN (" + ",".join(["?"] * len(channel_ids)) + ")",
+                channel_ids
+            )
             rows = cur.fetchall()
             games: list[Self] = []
             

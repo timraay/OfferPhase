@@ -26,7 +26,7 @@ def games_to_calendar_embed(category: CategoryChannel, games: list[Game]):
         if game.is_done():
             factions: tuple[Faction, Faction] = (game.get_team_faction(1), game.get_team_faction(2)) # type: ignore
             
-            lines.append(f"{factions[0].emojis.default} <@&{teams[0].name}> vs {factions[1].emojis.default} <@&{teams[1].name}>")
+            lines.append(f"{factions[0].emojis.default} <@&{teams[0].public_role_id}> vs {factions[1].emojis.default} <@&{teams[1].public_role_id}>")
         else:
             lines.append(f"<@&{teams[0].public_role_id}> vs <@&{teams[1].public_role_id}>")
 
@@ -85,7 +85,7 @@ class CalendarCategory(BaseModel):
     def load(cls, category_id: int, channel_id: int):
         with get_cursor() as cur:
             cur.execute(
-                "SELECT * FROM calandar WHERE category_id = ? AND channel_id = ?",
+                "SELECT * FROM calendar WHERE category_id = ? AND channel_id = ?",
                 (category_id, channel_id)
             )
             data = cur.fetchone()
