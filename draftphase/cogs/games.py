@@ -28,28 +28,28 @@ def assert_team_role_validity(role: Role):
 
 async def autocomplete_caster(interaction: Interaction, value: str):
     casters = cached_get_casters()
-    options = []
+    options: list[app_commands.Choice] = []
     lowered_value = value.lower()
     for caster in casters:
         if lowered_value in caster.name or str(caster.user_id) in lowered_value:
-            options.append(SelectOption(
-                label=f"{caster.name} ({caster.channel_url})",
+            options.append(app_commands.Choice(
+                name=f"{caster.name} ({caster.channel_url})",
                 value=str(caster.user_id)
             ))
     return options
 
-async def autocomplete_stream(interaction: Interaction, value: str):
+async def autocomplete_stream(interaction: Interaction, value: str) -> list[app_commands.Choice]:
     if not interaction.channel:
         return []
 
     streams = cached_get_streams_for_game(interaction.channel.id)
-    options = []
+    options: list[app_commands.Choice] = []
     lowered_value = value.lower()
     for stream in streams:
         stream_str = stream.to_text()
         if lowered_value in stream.to_text().lower():
-            options.append(SelectOption(
-                label=stream_str,
+            options.append(app_commands.Choice(
+                name=stream_str,
                 value=str(stream.id)
             ))
     return options
