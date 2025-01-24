@@ -59,8 +59,7 @@ def create_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id INTEGER NOT NULL REFERENCES games(channel_id) ON DELETE CASCADE,
             caster_id INTEGER NOT NULL REFERENCES casters(user_id) ON DELETE CASCADE,
-            lang TEXT(4) NOT NULL,
-            url TEXT(100) NOT NULL
+            lang TEXT(4) NOT NULL
         )
         """)
         cur.execute("""
