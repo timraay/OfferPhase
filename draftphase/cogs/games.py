@@ -31,9 +31,10 @@ async def autocomplete_caster(interaction: Interaction, value: str):
     options: list[app_commands.Choice] = []
     lowered_value = value.lower()
     for caster in casters:
-        if lowered_value in caster.name or str(caster.user_id) in lowered_value:
+        name = f"{caster.name} ({caster.channel_url})"
+        if lowered_value in name.lower() or str(caster.user_id) in lowered_value:
             options.append(app_commands.Choice(
-                name=f"{caster.name} ({caster.channel_url})",
+                name=name,
                 value=str(caster.user_id)
             ))
     return options
@@ -47,7 +48,7 @@ async def autocomplete_stream(interaction: Interaction, value: str) -> list[app_
     lowered_value = value.lower()
     for stream in streams:
         stream_str = stream.to_text()
-        if lowered_value in stream.to_text().lower():
+        if lowered_value in stream_str.lower():
             options.append(app_commands.Choice(
                 name=stream_str,
                 value=str(stream.id)
@@ -452,7 +453,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
         game.remove_stream(stream)
 
         await interaction.response.send_message(
-            get_success_embed(
+            embed=get_success_embed(
                 "Removed stream",
                 stream.to_text()
             ),
