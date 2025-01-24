@@ -265,7 +265,7 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         await interaction.response.send_message(
             embed=get_success_embed(
-                "Updated team 2 role!",
+                "Updated start time!",
                 f"{format_dt(start_time, 'F')} ({format_dt(start_time, 'R')})"
             ),
             ephemeral=True,
@@ -320,6 +320,48 @@ class GamesCog(commands.GroupCog, group_name="match"):
         await interaction.response.send_message(
             embed=get_success_embed(
                 "Match score has been reset!",
+            ),
+            ephemeral=True,
+        )
+
+        await send_or_edit_game_message(interaction.client, game)
+
+
+    @set_group.command(name="stream_delay", description="Update the stream delay")
+    @app_commands.describe(
+        stream_delay="The new stream delay in minutes"
+    )
+    async def set_stream_delay(self, interaction: Interaction, stream_delay: int):
+        if (stream_delay < 0):
+            raise CustomException(
+                "Delay must be greater than 0"
+            )
+
+        assert interaction.channel_id is not None
+        game = Game.load(interaction.channel_id)
+        game.stream_delay = stream_delay
+        game.save()
+
+        await interaction.response.send_message(
+            embed=get_success_embed(
+                "Updated stream_delay!",
+                f"{stream_delay} minutes"
+            ),
+            ephemeral=True,
+        )
+
+        await send_or_edit_game_message(interaction.client, game)
+
+    @reset_group.command(name="stream_delay", description="Remove the stream_delay")
+    async def reset_stream_delay(self, interaction: Interaction):
+        assert interaction.channel_id is not None
+        game = Game.load(interaction.channel_id)
+        game.stream_delay = 0
+        game.save()
+
+        await interaction.response.send_message(
+            embed=get_success_embed(
+                "Match stream_delay has been reset!",
             ),
             ephemeral=True,
         )
