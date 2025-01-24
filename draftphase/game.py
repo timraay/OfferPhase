@@ -140,32 +140,32 @@ class Caster(BaseModel):
             return self
     
     @classmethod
+    def _load_row(cls, data: tuple):
+        return cls(
+            user_id=data[0],
+            name=data[1],
+            channel_url=data[2],
+        )
+
+    @classmethod
     def load(cls, user_id: int) -> Self:
         with get_cursor() as cur:
             cur.execute("SELECT * FROM casters WHERE user_id = ?", (user_id,))
             data = cur.fetchone()
             if not data:
                 raise ValueError("No caster exists with ID %s" % user_id)
-
-            caster = cls(
-                user_id=data[0],
-                name=data[1],
-                channel_url=data[2],
-            )
-            return caster
+            
+            return cls._load_row(data)
 
     @classmethod
     def load_all(cls) -> list[Self]:
         casters = []
         with get_cursor() as cur:
             cur.execute("SELECT * FROM casters")
-            data = cur.fetchall()
-            caster = cls(
-                user_id=data[0],
-                name=data[1],
-                channel_url=data[2],
-            )
-            casters.append(caster)
+            rows = cur.fetchall()
+            for data in rows:
+                caster = cls._load_row(data)
+                casters.append(caster)
         return casters
 
     @classmethod
