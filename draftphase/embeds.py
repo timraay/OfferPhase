@@ -60,7 +60,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
     )
     embed.add_field(
         name="Score",
-        value="-",
+        value=f"||{game.score}||" if game.score else "-",
         inline=True,
     )
     embed.add_field(
@@ -73,7 +73,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
         embed.add_field(
             name="_ _\nStart time",
             value=f"{format_dt(game.start_time, 'F')} ({format_dt(game.start_time, 'R')})",
-            inline=True,
+            inline=False,
         )
     
     if game.streams:
@@ -82,7 +82,7 @@ async def get_game_embeds(client: Client, game: Game) -> tuple[MessagePayload, l
             value="\n".join(
                 [streamer.to_text() for streamer in game.streams]
             ),
-            inline=True,
+            inline=False,
         )
 
     if game.subtitle:
