@@ -45,7 +45,7 @@ class CastersCog(commands.Cog):
         channel_url="The link to the caster's channel",
     )
     async def add_caster(self, interaction: Interaction, member: Member, name: str, channel_url: str):
-        caster, created = Caster.upsert(interaction.user.id, name, channel_url)
+        caster, created = Caster.upsert(member.id, name, channel_url)
         await interaction.response.send_message(
             embed=get_success_embed(
                 "Added new caster!" if created else "Updated information of caster!",
