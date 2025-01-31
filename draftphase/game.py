@@ -17,17 +17,18 @@ STREAM_DELAY = 15
 RE_SCORES = re.compile(r"(\d+)\s*[-:|/\\]\s*(\d+)")
 
 FLAGS = dict(
-    UK=("EN", "🇬🇧"),
-    US=("EN", "🇺🇸"),
-    DE=("DE", "🇩🇪"),
-    NL=("NL", "🇳🇱"),
-    FR=("FR", "🇫🇷"),
     CN=("CN", "🇨🇳"),
-    RU=("RU", "🇷🇺"),
-    ES=("ES", "🇪🇸"),
-    PT=("PT", "🇵🇹"),
-    JP=("JP", "🇯🇵"),
+    DE=("DE", "🇩🇪"),
+    US=("EN", "🇺🇸"),
+    UK=("EN", "🇬🇧"),
     AU=("EN", "🇦🇺"),
+    ES=("ES", "🇪🇸"),
+    FR=("FR", "🇫🇷"),
+    JP=("JP", "🇯🇵"),
+    NL=("NL", "🇳🇱"),
+    PT=("PT", "🇵🇹"),
+    BR=("PT", "🇧🇷"),
+    RU=("RU", "🇷🇺"),
 )
 DEFAULT_FLAG = ['??', '❓']
 
