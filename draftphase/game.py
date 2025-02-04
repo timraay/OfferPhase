@@ -380,6 +380,7 @@ class Game(BaseModel):
     subtitle: str | None = None
     start_time: datetime | None = None
     score: str | None = None
+    # team1_score: int | None = None
     max_num_offers: int = MAX_OFFERS
     flip_coin: bool
     flip_advantage: bool | None = None
@@ -416,11 +417,12 @@ class Game(BaseModel):
                 subtitle=data[5],
                 start_time=datetime.fromtimestamp(data[6]) if data[6] else None,
                 score=data[7],
-                max_num_offers=data[8],
-                flip_coin=data[9],
-                flip_advantage=data[10],
-                flip_sides=data[11],
-                stream_delay=data[12],
+                # team1_score=data[8],
+                max_num_offers=data[9],
+                flip_coin=data[10],
+                flip_advantage=data[11],
+                flip_sides=data[12],
+                stream_delay=data[13],
             )
     
     @classmethod
@@ -437,11 +439,12 @@ class Game(BaseModel):
             subtitle=data[5],
             start_time=datetime.fromtimestamp(data[6], tz=timezone.utc) if data[6] else None,
             score=data[7],
-            max_num_offers=data[8],
-            flip_coin=data[9],
-            flip_advantage=data[10],
-            flip_sides=data[11],
-            stream_delay=data[12],
+            # team1_score=data[8],
+            max_num_offers=data[9],
+            flip_coin=data[10],
+            flip_advantage=data[11],
+            flip_sides=data[12],
+            stream_delay=data[13],
             offers=offers,
             streams=streams,
         )
@@ -489,6 +492,7 @@ class Game(BaseModel):
         data = self.model_dump()
         if self.start_time:
             data["start_time"] = int(self.start_time.timestamp())
+        data["team1_score"] = scores[0] if (scores := self.get_scores()) else None
         with get_cursor() as cur:
             cur.execute(
                 """
@@ -500,6 +504,7 @@ class Game(BaseModel):
                     start_time=:start_time,
                     max_num_offers=:max_num_offers,
                     score=:score,
+                    team1_score=:team1_score,
                     flip_coin=:flip_coin,
                     flip_advantage=:flip_advantage,
                     flip_sides=:flip_sides,
