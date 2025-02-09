@@ -19,6 +19,15 @@ class Bot(BaseModel, frozen=True):
     token: str
     emojis: dict[str, str]
     organiser_role_id: int | None
+    max_num_offers: int
+    default_stream_delay: int | None
+
+    @field_validator("max_num_offers")
+    @classmethod
+    def validate_num_offers(cls, v: int):
+        if v < 1:
+            raise ValueError("Must be greater than 0")
+        return v
 
 class Team(BaseModel, frozen=True):
     rep_role_id: int

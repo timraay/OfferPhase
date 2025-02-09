@@ -7,12 +7,13 @@ from discord import Member, TextChannel
 import discord
 from pydantic import BaseModel, Field
 
+from draftphase.config import get_config
 from draftphase.db import get_cursor
 from draftphase.discord_utils import GameStateError
 from draftphase.maps import ENVIRONMENTS, MAPS, TEAMS, LayoutType, Team, has_middleground
 
-MAX_OFFERS = 12
-STREAM_DELAY = 15
+MAX_OFFERS = get_config().bot.max_num_offers
+STREAM_DELAY = get_config().bot.default_stream_delay or 0
 
 RE_SCORES = re.compile(r"(\d+)\s*[-:|/\\]\s*(\d+)")
 

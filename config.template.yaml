@@ -53,6 +53,14 @@ bot:
   # The role ID for event organisers. Currently only used for thread creation.
   organiser_role_id: 
 
+  # The maximum amount of offers in an offer phase, divided over the two teams.
+  # Note that with uneven numbers, the first team gets one extra offer.
+  # Value must be greater than 0.
+  max_num_offers: 12
+
+  # The default stream delay in minutes. Defaults to 0 minutes (no delay) if left empty.
+  default_stream_delay: 
+
 teams:
   # The name of the team
   MyTeam:
