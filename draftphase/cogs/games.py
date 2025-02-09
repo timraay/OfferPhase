@@ -1,8 +1,7 @@
-import asyncio
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
 
-from discord import AllowedMentions, ButtonStyle, ChannelType, Interaction, Member, Permissions, Role, SelectOption, TextChannel, app_commands
+from discord import AllowedMentions, ButtonStyle, ChannelType, Interaction, Member, Permissions, Role, SelectOption, TextChannel, Thread, app_commands
 from discord.ext import commands
 from discord.utils import format_dt
 
@@ -40,10 +39,12 @@ async def autocomplete_caster(interaction: Interaction, value: str):
     return options
 
 async def autocomplete_stream(interaction: Interaction, value: str) -> list[app_commands.Choice]:
-    if not interaction.channel:
+    try:
+        channel = get_channel(interaction)
+    except:
         return []
 
-    streams = cached_get_streams_for_game(interaction.channel.id)
+    streams = cached_get_streams_for_game(channel.id)
     options: list[app_commands.Choice] = []
     lowered_value = value.lower()
     for stream in streams:
@@ -54,6 +55,21 @@ async def autocomplete_stream(interaction: Interaction, value: str) -> list[app_
                 value=str(stream.id)
             ))
     return options
+
+
+def get_channel(interaction: Interaction):
+    channel = interaction.channel
+
+    if isinstance(channel, Thread):
+        channel = channel.parent
+    
+    if not isinstance(channel, TextChannel):
+        raise CustomException(
+            "Cannot use this here!",
+            "Command must not be invoked from within a standard text channel or one of its threads."
+        )
+
+    return channel
 
 
 @app_commands.guild_only()
@@ -150,16 +166,16 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
     @app_commands.command(name="resend", description="Resend the message of this channel's match")
     async def resend_draft_phase(self, interaction: Interaction):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         await interaction.response.defer(ephemeral=True)
         await send_or_edit_game_message(interaction.client, game)
         await interaction.followup.send(embed=get_success_embed("Resent message!"))
     
     @app_commands.command(name="remove", description="Remove this channel's offer phase")
     async def remove_draft_phase(self, interaction: Interaction):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
 
         async def _remove_draft_phase(_interaction: Interaction):
             await delete_game_message(interaction.client, game)
@@ -181,8 +197,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         if amount <= 0:
             raise CustomException("Invalid argument!", "Amount must be greater than 0")
 
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
 
         await interaction.response.defer(ephemeral=True)
 
@@ -206,8 +222,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
     async def set_team1(self, interaction: Interaction, role: Role):
         assert_team_role_validity(role)
 
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.team1_id = role.id
         game.save()
 
@@ -228,8 +244,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
     async def set_team2(self, interaction: Interaction, role: Role):
         assert_team_role_validity(role)
 
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.team2_id = role.id
         game.save()
 
@@ -259,8 +275,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
         start_time = start_time.replace(microsecond=0, tzinfo=start_time.tzinfo or timezone.utc)
 
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.start_time = start_time
         game.save()
 
@@ -276,8 +292,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
     @reset_group.command(name="start_time", description="Remove the start time")
     async def reset_start_time(self, interaction: Interaction):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.start_time = None
         game.save()
 
@@ -296,8 +312,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         score="The new score"
     )
     async def set_score(self, interaction: Interaction, score: str):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.score = score
         game.save()
 
@@ -313,8 +329,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
     @reset_group.command(name="score", description="Remove the score")
     async def reset_score(self, interaction: Interaction):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.score = None
         game.save()
 
@@ -338,8 +354,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
                 "Delay must be greater than 0"
             )
 
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.stream_delay = stream_delay
         game.save()
 
@@ -355,8 +371,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
 
     @reset_group.command(name="stream_delay", description="Remove the stream_delay")
     async def reset_stream_delay(self, interaction: Interaction):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         game.stream_delay = 0
         game.save()
 
@@ -385,8 +401,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         lang="The stream's language"
     )
     async def add_stream(self, interaction: Interaction, caster_id: str, lang: str):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
 
         caster = Caster.load(int(caster_id))
         stream = game.add_stream(caster, lang)
@@ -412,8 +428,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         lang="The stream's language"
     )
     async def add_stream_manually(self, interaction: Interaction, member: Member, name: str, channel_url: str, lang: str):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
                 
         caster, _ = Caster.upsert(member.id, name, channel_url)
         stream = game.add_stream(caster, lang)
@@ -439,8 +455,8 @@ class GamesCog(commands.GroupCog, group_name="match"):
         stream_id_str="The stream to remove"
     )
     async def remove_stream(self, interaction: Interaction, stream_id_str: str):
-        assert interaction.channel_id is not None
-        game = Game.load(interaction.channel_id)
+        channel = get_channel(interaction)
+        game = Game.load(channel.id)
         
         stream_id = int(stream_id_str)
 
