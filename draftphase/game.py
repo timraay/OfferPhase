@@ -528,7 +528,10 @@ class Game(BaseModel):
             return None
         
         groups = match.groups()
-        return (int(groups[0]), int(groups[1]))
+        if self.flip_sides:
+            return (int(groups[1]), int(groups[0]))
+        else:
+            return (int(groups[0]), int(groups[1]))
 
     def get_predictions(self) -> list[Prediction]:
         return Prediction.load_for_game(self.channel_id)
