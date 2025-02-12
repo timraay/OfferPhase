@@ -66,7 +66,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS predictions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id INTEGER NOT NULL REFERENCES games(channel_id) ON DELETE CASCADE,
-            user_id INTEGER NOT NULL REFERENCES casters(user_id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL,
             team1_score INTEGER NOT NULL
         )
         """)

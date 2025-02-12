@@ -23,8 +23,11 @@ class Bot(commands.Bot):
             CastPredictionSelect,
         )
 
+INTENTS = Intents.default()
+INTENTS.members = True
+
 DISCORD_BOT = Bot(
-    intents=Intents.default(),
+    intents=INTENTS,
     command_prefix=commands.when_mentioned,
     case_insensitive=True
 )

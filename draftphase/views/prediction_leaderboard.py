@@ -8,9 +8,9 @@ from draftphase.db import get_cursor
 from draftphase.discord_utils import CallableButton, View
 
 EMOJIS = [
-    ":gold_medal:",
-    ":silver_medal:",
-    ":bronze_medal:",
+    "🥇",
+    "🥈",
+    "🥉",
 ]
 
 class UserPrediction(NamedTuple):
@@ -31,22 +31,26 @@ class LeaderboardTypeDetails(NamedTuple):
     name: str
     description: str
     score_fn: ScoreFn
+    total_fn: ScoreFn
 
 class LeaderboardType(Enum):
     WINNER = LeaderboardTypeDetails(
         "Correct winner",
         "Sorted by times correctly predicted winner of a match",
         lambda x: x.num_correct_winner,
+        lambda x: x.num_guessed,
     )
     SCORE = LeaderboardTypeDetails(
         "Correct score",
         "Sorted by times correctly predicted final score of a match",
         lambda x: x.num_correct_score,
+        lambda x: x.num_guessed,
     )
     COMGINED = LeaderboardTypeDetails(
         "Combined",
-        "Sorted by times correctly predicted winner of a match. Double points for correct predictions of the final score.",
+        "Sorted by times correctly predicted winner of a match.\nDouble points for correct predictions of the final score.",
         lambda x: x.num_correct_winner + x.num_correct_score,
+        lambda x: 2 * x.num_guessed,
     )
 
 def get_user_predictions() -> list[UserPrediction]:
@@ -55,17 +59,18 @@ def get_user_predictions() -> list[UserPrediction]:
             "SELECT"
             " user_id,"
             " COUNT(id) AS num_guessed,"
-            " COUNT((predictions.team1_score > 2) = (games.team1_score > 2)) AS num_correct_winner,"
-            " COUNT((predictions.team1_score = games.team1_score)) AS num_correct_score"
+            " COUNT(CASE WHEN (predictions.team1_score > 2) = (games.team1_score > 2) THEN 1 END) AS num_correct_winner,"
+            " COUNT(CASE WHEN (predictions.team1_score = games.team1_score) THEN 1 END) AS num_correct_score"
             " FROM predictions"
             " INNER JOIN games ON predictions.game_id = games.channel_id"
+            " WHERE games.team1_score IS NOT NULL"
             " GROUP BY user_id"
         )
-        return cur.fetchall()
+        return [UserPrediction(*row) for row in cur.fetchall()]
 
 def get_score(prediction: UserPrediction, score_fn: ScoreFn, guild: Guild) -> UserPredictionScore:
     score = score_fn(prediction)
-    rate = (score / prediction.num_guessed) * 100
+    rate = (score / prediction.num_guessed)
 
     user = guild.get_member(prediction.user_id)
     if not user:
@@ -82,7 +87,7 @@ class PredictionLeaderboardView(View):
         self.member = member
 
         self.buttons = {
-            lb_type.name: CallableButton(
+            lb_type: CallableButton(
                 partial(self.set_leaderboard_type, lb_type),
                 label=lb_type.value.name,
                 style=ButtonStyle.blurple,
@@ -104,29 +109,29 @@ class PredictionLeaderboardView(View):
         self.predictions.sort(key=lambda x: score_fn(x) * 1000 - x.num_guessed, reverse=True)
 
         # Display top 3
-        for i in range(3):
+        for i in range(min(3, len(self.predictions))):
             score = get_score(self.predictions[i], score_fn, self.member.guild)
 
             embed.add_field(
                 name=f"{EMOJIS[i]} {score.name}",
-                value=f"**{score.score}**/{score.total} (**{score.rate:.1f}**%)",
+                value=f"**{score.score}** / {score.total} (**{score.rate:.1%}**)",
                 inline=True,
             )
 
-        line = "`{rank: <6}{username: <20}{score: <5}{total: <5}{rate: <6}`"
+        line = "`{rank: <6}{username: <20}{score: <6}{total: <6}{rate: <6}`"
         lines = [
-            line.format(rank="RANK", username="USERNAME", score="CORR", total="TOTL", rate="RATE")
+            "**" + line.format(rank="RANK", username="USERNAME", score="RIGHT", total="TOTAL", rate="RATE") + "**"
         ]
 
         # Display top 20
-        for i in range(20):
+        for i in range(min(20, len(self.predictions))):
             score = get_score(self.predictions[i], score_fn, self.member.guild)
             lines.append(line.format(
                 rank="#" + str(i + 1),
                 username=score.name,
                 score=score.score,
                 total=score.total,
-                rate=score.rate,
+                rate="{:.1%}".format(score.rate),
             ))
         
         # Find index of self.member in self.predictions
