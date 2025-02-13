@@ -79,7 +79,7 @@ def get_score(prediction: UserPrediction, score_fn: ScoreFn, total_fn: ScoreFn, 
     if not user:
         user = DISCORD_BOT.get_user(prediction.user_id)
 
-    username = user.display_name if user else "Unknown user"
+    username = user.display_name[:20] if user else "Unknown user"
     return UserPredictionScore(username, score, total, rate)
 
 class PredictionLeaderboardView(View):
