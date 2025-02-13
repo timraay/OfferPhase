@@ -22,9 +22,22 @@ def games_to_calendar_embed(category: CategoryChannel, games: list[Game]):
     max_time = datetime(3000, 1, 1, tzinfo=timezone.utc)
     for game in sorted(games[:15], key=lambda g: g.start_time or max_time):
         lines = list()
-        teams = (game.get_team(1), game.get_team(2))
+
+        if game.flip_sides:
+            team_indices = (2, 1)
+        else:
+            team_indices = (1, 2)
+
+        teams = (
+            game.get_team(team_indices[0]),
+            game.get_team(team_indices[1]),
+        )
+
         if game.is_done():
-            factions: tuple[Faction, Faction] = (game.get_team_faction(1), game.get_team_faction(2)) # type: ignore
+            factions: tuple[Faction, Faction] = (
+                game.get_team_faction(team_indices[0]),
+                game.get_team_faction(team_indices[1]),
+            ) # type: ignore
             
             lines.append(f"{factions[0].emojis.default} <@&{teams[0].public_role_id}> vs {factions[1].emojis.default} <@&{teams[1].public_role_id}>")
         else:
