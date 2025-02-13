@@ -70,16 +70,17 @@ def get_user_predictions() -> list[UserPrediction]:
         )
         return [UserPrediction(*row) for row in cur.fetchall()]
 
-def get_score(prediction: UserPrediction, score_fn: ScoreFn, guild: Guild) -> UserPredictionScore:
+def get_score(prediction: UserPrediction, score_fn: ScoreFn, total_fn: ScoreFn, guild: Guild) -> UserPredictionScore:
     score = score_fn(prediction)
-    rate = (score / prediction.num_guessed) if prediction.num_guessed != 0 else 0
+    total = total_fn(prediction)
+    rate = (score / total) if total != 0 else 0
 
     user = guild.get_member(prediction.user_id)
     if not user:
         user = DISCORD_BOT.get_user(prediction.user_id)
 
     username = user.display_name if user else "Unknown user"
-    return UserPredictionScore(username, score, prediction.num_guessed, rate)
+    return UserPredictionScore(username, score, total, rate)
 
 class PredictionLeaderboardView(View):
     def __init__(self, member: Member):
@@ -108,11 +109,12 @@ class PredictionLeaderboardView(View):
     def get_embed_update_self(self):
         embed = Embed()
         score_fn = self.leaderboard_type.value.score_fn
+        total_fn = self.leaderboard_type.value.total_fn
         self.predictions.sort(key=lambda x: score_fn(x) * 1000 - x.num_guessed, reverse=True)
 
         # Display top 3
         for i in range(min(3, len(self.predictions))):
-            score = get_score(self.predictions[i], score_fn, self.member.guild)
+            score = get_score(self.predictions[i], score_fn, total_fn, self.member.guild)
 
             embed.add_field(
                 name=f"{EMOJIS[i]} {score.name}",
@@ -142,7 +144,7 @@ class PredictionLeaderboardView(View):
         
         # Display top 20
         for i in range(leaderboard_size):
-            score = get_score(self.predictions[i], score_fn, self.member.guild)
+            score = get_score(self.predictions[i], score_fn, total_fn, self.member.guild)
             lines.append(line.format(
                 rank="#" + str(i + 1),
                 username=score.name,
@@ -154,7 +156,7 @@ class PredictionLeaderboardView(View):
         
         # Display score of self.member if not in top 20
         if (own_i >= leaderboard_size):
-            score = get_score(own_prediction, score_fn, self.member.guild)
+            score = get_score(own_prediction, score_fn, total_fn, self.member.guild)
 
             lines.append("...")
             lines.append(line.format(
