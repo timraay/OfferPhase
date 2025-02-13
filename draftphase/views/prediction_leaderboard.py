@@ -158,7 +158,7 @@ class PredictionLeaderboardView(View):
 
             lines.append("...")
             lines.append(line.format(
-                rank="#" + str(i + 1),
+                rank="#" + str(own_i + 1),
                 username=score.name,
                 score=score.score,
                 total=score.total,
