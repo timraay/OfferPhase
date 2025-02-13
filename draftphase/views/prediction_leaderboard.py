@@ -133,6 +133,7 @@ class PredictionLeaderboardView(View):
         for i, prediction in enumerate(self.predictions):
             if (prediction.user_id == self.member.id):
                 own_i = i
+                own_prediction = prediction
                 break
         
         if len(self.predictions) <= MAX_LEADERBOARD_ROWS:
