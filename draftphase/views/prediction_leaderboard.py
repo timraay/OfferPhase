@@ -72,7 +72,7 @@ def get_user_predictions() -> list[UserPrediction]:
 
 def get_score(prediction: UserPrediction, score_fn: ScoreFn, guild: Guild) -> UserPredictionScore:
     score = score_fn(prediction)
-    rate = (score / prediction.num_guessed)
+    rate = (score / prediction.num_guessed) if prediction.num_guessed != 0 else 0
 
     user = guild.get_member(prediction.user_id)
     if not user:
