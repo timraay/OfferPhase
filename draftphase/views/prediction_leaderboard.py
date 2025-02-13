@@ -7,6 +7,8 @@ from draftphase.bot import DISCORD_BOT
 from draftphase.db import get_cursor
 from draftphase.discord_utils import CallableButton, View
 
+MAX_LEADERBOARD_ROWS = 20
+
 EMOJIS = [
     "🥇",
     "🥈",
@@ -123,8 +125,22 @@ class PredictionLeaderboardView(View):
             "**" + line.format(rank="RANK", username="USERNAME", score="RIGHT", total="TOTAL", rate="RATE") + "**"
         ]
 
+        own_i = -1
+        # Find index of self.member in self.predictions
+        for i, prediction in enumerate(self.predictions):
+            if (prediction.user_id == self.member.id):
+                own_i = i
+                break
+        
+        if len(self.predictions) <= MAX_LEADERBOARD_ROWS:
+            leaderboard_size = len(self.predictions)
+        elif own_i >= MAX_LEADERBOARD_ROWS:
+            leaderboard_size = MAX_LEADERBOARD_ROWS - 2
+        else:
+            leaderboard_size = MAX_LEADERBOARD_ROWS
+        
         # Display top 20
-        for i in range(min(20, len(self.predictions))):
+        for i in range(leaderboard_size):
             score = get_score(self.predictions[i], score_fn, self.member.guild)
             lines.append(line.format(
                 rank="#" + str(i + 1),
@@ -134,16 +150,9 @@ class PredictionLeaderboardView(View):
                 rate="{:.1%}".format(score.rate),
             ))
         
-        # Find index of self.member in self.predictions
-        for i, prediction in enumerate(self.predictions):
-            if (prediction.user_id == self.member.id):
-                break
-        else:
-            i += 1
-            prediction = UserPrediction(self.member.id, 0, 0, 0)
         
         # Display score of self.member if not in top 20
-        if (i > 20):
+        if (i >= leaderboard_size):
             score = get_score(prediction, score_fn, self.member.guild)
 
             lines.append("...")
