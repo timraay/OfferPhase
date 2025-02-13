@@ -125,7 +125,8 @@ class PredictionLeaderboardView(View):
             "**" + line.format(rank="RANK", username="USERNAME", score="RIGHT", total="TOTAL", rate="RATE") + "**"
         ]
 
-        own_i = -1
+        own_i = len(self.predictions)
+        own_prediction = UserPrediction(self.member.id, 0, 0, 0)
         # Find index of self.member in self.predictions
         for i, prediction in enumerate(self.predictions):
             if (prediction.user_id == self.member.id):
@@ -152,8 +153,8 @@ class PredictionLeaderboardView(View):
         
         
         # Display score of self.member if not in top 20
-        if (i >= leaderboard_size):
-            score = get_score(prediction, score_fn, self.member.guild)
+        if (own_i >= leaderboard_size):
+            score = get_score(own_prediction, score_fn, self.member.guild)
 
             lines.append("...")
             lines.append(line.format(
