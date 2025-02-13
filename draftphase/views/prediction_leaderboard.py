@@ -165,7 +165,7 @@ class PredictionLeaderboardView(View):
                 username=score.name,
                 score=score.score,
                 total=score.total,
-                rate=score.rate,
+                rate="{:.1%}".format(score.rate),
             ))
 
         embed.add_field(
