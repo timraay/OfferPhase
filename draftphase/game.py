@@ -247,7 +247,7 @@ class Stream(BaseModel):
                 """
                 UPDATE streams SET
                     caster_id=:caster_id,
-                    lang=:lang,
+                    lang=:lang
                 WHERE id = :id
                 """,
                 data

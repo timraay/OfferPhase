@@ -8,10 +8,10 @@ def get_cursor():
     cur = DB_CONN.cursor()
     try:
         yield cur
-    except:
-        raise
-    else:
         DB_CONN.commit()
+    except:
+        DB_CONN.rollback()
+        raise
     finally:
         cur.close()
 
@@ -83,4 +83,32 @@ def create_tables():
             category_id INTEGER NOT NULL,
             PRIMARY KEY(channel_id, category_id)
         )
+        """)
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS polls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id INTEGER NOT NULL,
+            channel_id INTEGER NOT NULL,
+            message_id INTEGER,
+            question TEXT NOT NULL,
+            is_closed BOOL DEFAULT 0 NOT NULL
+        )""")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS poll_options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            poll_id INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+            option TEXT NOT NULL
+        )""")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS poll_votes (
+            role_id INTEGER NOT NULL,
+            poll_id INTEGER NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+            option_id INTEGER NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE
+        )""")
+        cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_polls_message_id ON polls (message_id)
+        """)
+        cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_poll_votes_role_id_poll_id ON poll_votes (role_id, poll_id)
         """)

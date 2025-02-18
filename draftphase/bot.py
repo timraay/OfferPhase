@@ -17,10 +17,12 @@ class Bot(commands.Bot):
             SelectOfferSelect, CreateOfferSelect, TakeAdvantageButton, GiveAdvantageButton,
         )
         from draftphase.views.cast_prediction import CastPredictionSelect
+        from draftphase.views.poll import PollCastVoteButton
         self.add_dynamic_items(
             AcceptOfferButton, GetControlsButton, DeclineOfferButton, CreateOfferConfirmButton,
             SelectOfferSelect, CreateOfferSelect, TakeAdvantageButton, GiveAdvantageButton,
             CastPredictionSelect,
+            PollCastVoteButton,
         )
 
 INTENTS = Intents.default()
